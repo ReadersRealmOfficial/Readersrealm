@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNi4JsCVM89WNeVAUx0Jcq3bPk7-C0UBR5Xk_Y9zXyCeTWfL5kybDMTXGGUhfJRwIg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-sVVBLxol9DB2Z1oPhrFXOATQeikm4IkVYswrtHkA2-KQXWcgbB8Jrso8ZgfdL6Dq/exec";
 
 const C = { darkPurple:"#2B1E2F", copper:"#C27A3A", cream:"#E8DCCB", darkBrown:"#4A2C23", teal:"#35605A", sage:"#5B6C5D" };
 
