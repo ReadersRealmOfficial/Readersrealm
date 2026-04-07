@@ -34,12 +34,7 @@ export default function Landing() {
     };
     try {
       await fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      <!-- Google tag (gtag.js) event -->
-<script>
-  gtag('event', 'conversion_event_signup_1', {
-    // <event_parameters>
-  });
-</script>
+     window.gtag('event', 'conversion_event_signup_1', {});
       setStatus("done");
       localStorage.setItem("rr_access", "true");
       localStorage.setItem("rr_email", email.trim());
