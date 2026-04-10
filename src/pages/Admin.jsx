@@ -52,6 +52,9 @@ export default function Admin() {
   const bookClicks = events.filter(e => e.action === "book_click");
   const topBooks = bookClicks.reduce((acc, e) => { const k = e.title || "Unknown"; acc[k] = (acc[k] || 0) + 1; return acc; }, {});
   const feedbackClicks = events.filter(e => e.action === "feedback_click").length;
+  const affiliateClicks = events.filter(e => e.action === "affiliate_click");
+  const bookshopClicks = affiliateClicks.filter(e => e.store === "bookshop").length;
+  const amazonClicks = affiliateClicks.filter(e => e.store === "amazon").length;
 
   // Session stats
   const avgSession = sessions.length ? Math.round(sessions.reduce((a, s) => a + (s.duration || 0), 0) / sessions.length) : 0;
@@ -224,6 +227,8 @@ export default function Admin() {
           <div className="stat-row" style={{ display:"flex",gap:"12px",marginBottom:"20px",flexWrap:"wrap" }}>
             <Stat label="Book Clicks" value={bookClicks.length} color={C.copper} />
             <Stat label="Feedback Clicks" value={feedbackClicks} color={C.teal} />
+            <Stat label="Bookshop Clicks" value={bookshopClicks} color={C.sage} />
+            <Stat label="Amazon Clicks" value={amazonClicks} color={C.darkBrown} />
             <Stat label="Filter Actions" value={filterEvents.length} color={C.teal} />
             <Stat label="Sessions Tracked" value={totalSessions} color={C.sage} />
             <Stat label="Avg Duration" value={avgSession ? `${avgSession}s` : "—"} color={C.darkBrown} />
