@@ -81,6 +81,7 @@ export default function Campfire() {
   const [timerState, setTimerState] = useState("stopped"); // stopped | running | paused
   const [timerSeconds, setTimerSeconds] = useState(0);
   const timerRef = useRef(null);
+  const [displayName, setDisplayName] = useState("");
 
   // Friday event
   const fridayNight = isFridayNightEvent();
@@ -89,6 +90,22 @@ export default function Campfire() {
   useEffect(() => {
     if (!isAuthenticated) navigate("/");
   }, [isAuthenticated, navigate]);
+
+  // ─── Load username from profiles table ───
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    const loadUsername = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username, display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (data?.username) setDisplayName(data.username);
+      else if (data?.display_name) setDisplayName(data.display_name);
+      else setDisplayName(user.email?.split("@")[0] || "Reader");
+    };
+    loadUsername();
+  }, [isAuthenticated, user]);
 
   // ─── Load "Currently Reading" books from user shelves ───
   useEffect(() => {
@@ -140,7 +157,7 @@ export default function Campfire() {
       if (status === "SUBSCRIBED") {
         await channel.track({
           user_id: user.id,
-          display_name: user.email?.split("@")[0] || "Reader",
+          display_name: displayName || user.email?.split("@")[0] || "Reader",
           book: myBook,
           online_at: new Date().toISOString(),
         });
@@ -151,7 +168,7 @@ export default function Campfire() {
       channel.untrack();
       supabase.removeChannel(channel);
     };
-  }, [isAtFire, isAuthenticated, user, myBook, fridayNight]);
+  }, [isAtFire, isAuthenticated, user, myBook, fridayNight, displayName]);
 
   // ─── Audio setup (looped) ───
   useEffect(() => {
