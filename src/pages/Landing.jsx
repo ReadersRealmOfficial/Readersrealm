@@ -194,7 +194,7 @@ export default function Landing() {
                   </label>
                 )}
 
-                <button className="cta" onClick={handleSubmit} disabled={status==="sending"}}
+                <button className="cta" onClick={handleSubmit} disabled={status==="sending"}
                   style={{ width:"100%",padding:"15px 24px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",color:"#fff",fontSize:"15px",fontWeight:700,cursor:status==="sending"?"wait":"pointer",borderRadius:"10px",letterSpacing:"0.5px",transition:"all 0.3s" }}>
                   {status === "sending" ? "Please wait..." : mode === "signup" ? "Create Account & Get Access" : "Log In"}
                 </button>
