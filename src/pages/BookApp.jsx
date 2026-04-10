@@ -399,7 +399,8 @@ export default function BookApp() {
     return () => window.removeEventListener("beforeunload", trackExit);
   }, []);
 
-  const DEFAULT_SHELVES = { "Want to Read":[], "Currently Reading":[], "Finished":[], "Kid #1 Reading List":[], "Books to Buy My Best Friend":[] };
+  const PROTECTED_SHELVES = ["Currently Reading", "Finished", "Recommended"];
+  const DEFAULT_SHELVES = { "Want to Read":[], "Currently Reading":[], "Finished":[], "Recommended":[], "Kid #1 Reading List":[], "Books to Buy My Best Friend":[] };
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("Popular");
@@ -425,14 +426,29 @@ export default function BookApp() {
   const [shelvesLoaded, setShelvesLoaded] = useState(false);
   const [showShelfPicker, setShowShelfPicker] = useState(null);
   const [activeShelf, setActiveShelf] = useState(null);
-  const [guestPrompt, setGuestPrompt] = useState(null); // message string or null
+  const [guestPrompt, setGuestPrompt] = useState(null);
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]);
   const [friendRequests, setFriendRequests] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
-  const [friendEmail, setFriendEmail] = useState("");
+  const [friendSearch, setFriendSearch] = useState("");
   const [recNote, setRecNote] = useState("");
   const [showRecPanel, setShowRecPanel] = useState(false);
+
+  // Account & username
+  const [showAccount, setShowAccount] = useState(false);
+  const [username, setUsername] = useState("");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [usernameSaved, setUsernameSaved] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState("");
+  // Custom shelves
+  const [newShelfName, setNewShelfName] = useState("");
+  const [showNewShelfInput, setShowNewShelfInput] = useState(false);
+  // Invite link copied
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   // Helper: check if user is authenticated, if not show guest prompt
   const requireAuth = (message) => {
@@ -472,13 +488,16 @@ export default function BookApp() {
     saveShelves();
   }, [shelves, user, isAuthenticated, shelvesLoaded]);
 
-  // Load friends & recommendations
+  // Load friends & recommendations + username
   useEffect(() => {
     if (!isAuthenticated) return;
     const loadSocial = async () => {
+      // Load username
+      const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
+      if (profile?.username) { setUsername(profile.username); setUsernameInput(profile.username); }
       // Friends
       const { data: f } = await supabase.from("friendships")
-        .select("*, requester:profiles!friendships_requester_id_fkey(id,email,display_name), addressee:profiles!friendships_addressee_id_fkey(id,email,display_name)")
+        .select("*, requester:profiles!friendships_requester_id_fkey(id,email,display_name,username), addressee:profiles!friendships_addressee_id_fkey(id,email,display_name,username)")
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
       if (f) {
         setFriends(f.filter(x => x.status === "accepted"));
@@ -486,20 +505,82 @@ export default function BookApp() {
       }
       // Recommendations to me
       const { data: r } = await supabase.from("recommendations")
-        .select("*, from_user:profiles!recommendations_from_user_id_fkey(id,email,display_name)")
+        .select("*, from_user:profiles!recommendations_from_user_id_fkey(id,email,display_name,username)")
         .eq("to_user_id", user.id);
-      if (r) setRecommendations(r);
+      if (r) {
+        setRecommendations(r);
+        // Auto-populate Recommended shelf
+        const recBookIds = [...new Set(r.map(rec => rec.book_id))];
+        setShelves(prev => ({ ...prev, "Recommended": recBookIds }));
+      }
     };
     loadSocial();
   }, [user, isAuthenticated]);
 
+  // Save username
+  const saveUsername = async () => {
+    const trimmed = usernameInput.trim().toLowerCase();
+    if (!trimmed) { setUsernameError("Username can't be empty."); return; }
+    if (trimmed.length < 3) { setUsernameError("Must be at least 3 characters."); return; }
+    if (!/^[a-z0-9_]+$/.test(trimmed)) { setUsernameError("Only lowercase letters, numbers, and underscores."); return; }
+    const { data: existing } = await supabase.from("profiles").select("id").eq("username", trimmed).maybeSingle();
+    if (existing && existing.id !== user.id) { setUsernameError("That username is already taken."); return; }
+    const { error } = await supabase.from("profiles").update({ username: trimmed }).eq("id", user.id);
+    if (error) { setUsernameError("Failed to save. Try again."); return; }
+    setUsername(trimmed);
+    setUsernameError("");
+    setUsernameSaved(true);
+    setTimeout(() => setUsernameSaved(false), 2000);
+  };
+
+  // Change password
+  const changePassword = async () => {
+    if (newPassword.length < 6) { setPasswordMsg("Min 6 characters."); return; }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) { setPasswordMsg(error.message); return; }
+    setPasswordMsg("Password updated!");
+    setNewPassword("");
+    setTimeout(() => setPasswordMsg(""), 3000);
+  };
+
+  // Create custom shelf
+  const createShelf = () => {
+    const name = newShelfName.trim();
+    if (!name) return;
+    if (shelves[name] !== undefined) { alert("A shelf with that name already exists."); return; }
+    setShelves(prev => ({ ...prev, [name]: [] }));
+    setNewShelfName("");
+    setShowNewShelfInput(false);
+  };
+
+  // Delete shelf
+  const deleteShelf = async (name) => {
+    if (PROTECTED_SHELVES.includes(name)) return;
+    if (!window.confirm(`Delete "${name}" shelf? Books won't be removed from your library.`)) return;
+    setShelves(prev => { const u = { ...prev }; delete u[name]; return u; });
+    if (activeShelf === name) setActiveShelf(null);
+    // Also delete from Supabase
+    if (isAuthenticated) {
+      await supabase.from("user_shelves").delete().eq("user_id", user.id).eq("shelf_name", name);
+    }
+  };
+
+  // Copy invite link
+  const copyInviteLink = async () => {
+    try { await navigator.clipboard.writeText(window.location.origin); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }
+    catch { alert("Link: " + window.location.origin); }
+  };
+
   const sendFriendRequest = async () => {
-    if (!friendEmail.trim()) return;
-    const { data: target } = await supabase.from("profiles").select("id").eq("email", friendEmail.trim()).maybeSingle();
-    if (!target) { alert("User not found. Make sure they've signed up."); return; }
+    if (!friendSearch.trim()) return;
+    const searchTerm = friendSearch.trim().toLowerCase();
+    const { data: target } = await supabase.from("profiles").select("id,username").eq("username", searchTerm).maybeSingle();
+    if (!target) { alert("No user found with that username. Make sure they've signed up and set a username."); return; }
     if (target.id === user.id) { alert("That's you!"); return; }
+    const { data: ex } = await supabase.from("friendships").select("id").or(`and(requester_id.eq.${user.id},addressee_id.eq.${target.id}),and(requester_id.eq.${target.id},addressee_id.eq.${user.id})`).maybeSingle();
+    if (ex) { alert("Friend request already exists or you're already friends."); return; }
     await supabase.from("friendships").insert({ requester_id: user.id, addressee_id: target.id });
-    setFriendEmail("");
+    setFriendSearch("");
     alert("Friend request sent!");
   };
 
@@ -673,6 +754,21 @@ export default function BookApp() {
                       📤 Recommend
                     </button>
                   )}
+                  {book.isbn && (
+                    <>
+                      <a href={`https://bookshop.org/a/123043/${book.isbn}`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "bookshop", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(91,108,93,0.2)", border: `1px solid ${C.sage}`, borderRadius: "6px", color: C.sage, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        🛒 Bookshop.org
+                      </a>
+                      <a href={`https://www.amazon.com/s?k=${book.isbn}&tag=readersreal0e-20`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "amazon", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(232,220,203,0.06)", border: "1px solid rgba(232,220,203,0.15)", borderRadius: "6px", color: "rgba(232,220,203,0.6)", fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        🛍️ Amazon
+                      </a>
+                    </>
+                  )}
+                  {book.isbn && (
+                    <div style={{ width: "100%", marginTop: "4px" }}>
+                      <span style={{ fontSize: "9px", color: "rgba(232,220,203,0.3)", fontStyle: "italic" }}>As an affiliate, we earn a small commission from qualifying purchases at no extra cost to you.</span>
+                    </div>
+                  )}
                   {showShelfPicker === book.id && isAuthenticated && (
                     <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 10, marginTop: "4px", background: "#2B1E2F", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "8px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
                       {Object.keys(shelves).map(s => (
@@ -688,7 +784,7 @@ export default function BookApp() {
                         const friend = f.requester_id === user.id ? f.addressee : f.requester;
                         return (
                           <div key={f.id} onClick={() => { recommendBook(book.id, friend.id); setShowRecPanel(false); }} style={{ padding: "8px 10px", cursor: "pointer", fontSize: "12px", color: C.cream, borderRadius: "6px", marginBottom: "2px" }} onMouseOver={e=>e.target.style.background="rgba(53,96,90,0.2)"} onMouseOut={e=>e.target.style.background="transparent"}>
-                            👤 {friend?.display_name || friend?.email?.split("@")[0]}
+                            👤 {friend?.username ? `@${friend.username}` : friend?.display_name || friend?.email?.split("@")[0]}
                           </div>
                         );
                       })}
@@ -700,7 +796,7 @@ export default function BookApp() {
                       <div style={{ fontSize: "10px", color: C.teal, fontWeight: 600, marginBottom: "4px" }}>Recommended by:</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                         {getBookRecs(book.id).map((r, i) => (
-                          <span key={i} style={{ padding: "2px 8px", background: "rgba(53,96,90,0.15)", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "10px", fontSize: "10px", color: C.teal }}>{r.from_user?.display_name || "Friend"}</span>
+                          <span key={i} style={{ padding: "2px 8px", background: "rgba(53,96,90,0.15)", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "10px", fontSize: "10px", color: C.teal }}>{r.from_user?.username ? `@${r.from_user.username}` : r.from_user?.display_name || "Friend"}</span>
                         ))}
                       </div>
                     </div>
@@ -785,9 +881,9 @@ export default function BookApp() {
 
             {/* Add Friend */}
             <div style={{ marginBottom:"20px",padding:"16px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
-              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"10px" }}>Add a Friend</div>
+              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"10px" }}>Add a Friend by Username</div>
               <div style={{ display:"flex",gap:"8px" }}>
-                <input type="email" placeholder="Friend's email address..." value={friendEmail} onChange={e=>setFriendEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendFriendRequest()}
+                <input type="text" placeholder="Enter their username..." value={friendSearch} onChange={e=>setFriendSearch(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendFriendRequest()}
                   style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
                 <button onClick={sendFriendRequest} style={{ padding:"10px 16px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>Send Request</button>
               </div>
@@ -799,7 +895,7 @@ export default function BookApp() {
                 <div style={{ fontSize:"11px",fontWeight:700,color:C.teal,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"10px" }}>Pending Requests</div>
                 {friendRequests.map(r => (
                   <div key={r.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"rgba(53,96,90,0.1)",borderRadius:"8px",marginBottom:"6px" }}>
-                    <span style={{ color:C.cream,fontSize:"13px" }}>{r.requester?.display_name || r.requester?.email}</span>
+                    <span style={{ color:C.cream,fontSize:"13px" }}>{r.requester?.username ? `@${r.requester.username}` : r.requester?.display_name || r.requester?.email}</span>
                     <button onClick={()=>acceptFriend(r.id)} style={{ padding:"6px 14px",background:C.teal,border:"none",borderRadius:"6px",color:"#fff",fontSize:"11px",fontWeight:700,cursor:"pointer" }}>Accept</button>
                   </div>
                 ))}
@@ -817,7 +913,7 @@ export default function BookApp() {
                 const friend = f.requester_id === user.id ? f.addressee : f.requester;
                 return (
                   <div key={f.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"rgba(232,220,203,0.03)",borderRadius:"8px",marginBottom:"6px",border:"1px solid rgba(232,220,203,0.06)" }}>
-                    <span style={{ color:C.cream,fontSize:"13px" }}>👤 {friend?.display_name || friend?.email?.split("@")[0]}</span>
+                    <span style={{ color:C.cream,fontSize:"13px" }}>👤 {friend?.username ? `@${friend.username}` : friend?.display_name || friend?.email?.split("@")[0]}</span>
                     <span style={{ color:"rgba(232,220,203,0.4)",fontSize:"11px" }}>Friends</span>
                   </div>
                 );
@@ -851,7 +947,7 @@ export default function BookApp() {
                       <div style={{ color:"rgba(232,220,203,0.5)",fontSize:"12px" }}>by {book.author}</div>
                       {g.recs.map((r, i) => (
                         <div key={i} style={{ marginTop:"6px",padding:"6px 10px",background:"rgba(53,96,90,0.1)",borderRadius:"6px",fontSize:"11px" }}>
-                          <span style={{ color:C.teal,fontWeight:600 }}>{r.from_user?.display_name || "A friend"}</span>
+                          <span style={{ color:C.teal,fontWeight:600 }}>{r.from_user?.username ? `@${r.from_user.username}` : r.from_user?.display_name || "A friend"}</span>
                           {r.note && <span style={{ color:"rgba(232,220,203,0.6)",marginLeft:"6px" }}>"{r.note}"</span>}
                         </div>
                       ))}
@@ -877,6 +973,60 @@ export default function BookApp() {
       )}
 
       {selectedBook && <BookDetailModal book={selectedBook} onClose={() => { setSelectedBook(null); setShowShelfPicker(null); }} />}
+
+      {/* Account Modal */}
+      {showAccount && isAuthenticated && (
+        <div onClick={() => setShowAccount(false)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"linear-gradient(160deg,#2B1E2F,#1a1220)",borderRadius:"20px",maxWidth:"460px",width:"100%",maxHeight:"85vh",overflowY:"auto",padding:"32px",border:"1px solid rgba(194,122,58,0.3)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"24px" }}>
+              <h2 style={{ fontFamily:"'Playfair Display',serif",color:C.cream,margin:0,fontSize:"22px" }}>My Account</h2>
+              <button onClick={()=>setShowAccount(false)} style={{ background:"none",border:"none",color:C.cream,fontSize:"20px",cursor:"pointer" }}>✕</button>
+            </div>
+
+            {/* Email */}
+            <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"6px" }}>Email</div>
+              <div style={{ color:C.cream,fontSize:"14px" }}>{user?.email}</div>
+            </div>
+
+            {/* Username */}
+            <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Username</div>
+              <div style={{ display:"flex",gap:"8px" }}>
+                <input type="text" placeholder="Choose a username..." value={usernameInput} onChange={e=>setUsernameInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveUsername()}
+                  style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
+                <button onClick={saveUsername} style={{ padding:"10px 16px",background:usernameSaved?C.teal:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",minWidth:"70px" }}>
+                  {usernameSaved ? "✓ Saved" : "Save"}
+                </button>
+              </div>
+              {usernameError && <div style={{ color:"#C27A3A",fontSize:"12px",marginTop:"6px" }}>{usernameError}</div>}
+              <div style={{ color:"rgba(232,220,203,0.35)",fontSize:"11px",marginTop:"6px" }}>Friends will find you by this username. Lowercase letters, numbers, and underscores only.</div>
+            </div>
+
+            {/* Change Password */}
+            <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Change Password</div>
+              {!showChangePassword ? (
+                <button onClick={()=>setShowChangePassword(true)} style={{ padding:"8px 16px",background:"rgba(232,220,203,0.06)",border:"1px solid rgba(232,220,203,0.15)",borderRadius:"8px",color:C.cream,fontSize:"12px",fontWeight:600,cursor:"pointer" }}>Change Password</button>
+              ) : (
+                <div style={{ display:"flex",gap:"8px" }}>
+                  <input type="password" placeholder="New password (min 6 chars)..." value={newPassword} onChange={e=>setNewPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&changePassword()}
+                    style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
+                  <button onClick={changePassword} style={{ padding:"10px 16px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer" }}>Update</button>
+                </div>
+              )}
+              {passwordMsg && <div style={{ color:passwordMsg.includes("updated")?C.teal:C.copper,fontSize:"12px",marginTop:"6px" }}>{passwordMsg}</div>}
+            </div>
+
+            {/* Coming Soon */}
+            <div style={{ padding:"16px",background:"rgba(53,96,90,0.08)",borderRadius:"12px",border:"1px solid rgba(53,96,90,0.2)",textAlign:"center" }}>
+              <div style={{ fontSize:"20px",marginBottom:"6px" }}>🚀</div>
+              <div style={{ fontFamily:"'Playfair Display',serif",color:C.cream,fontSize:"15px",fontWeight:600,marginBottom:"4px" }}>More Features Coming Soon</div>
+              <div style={{ color:"rgba(232,220,203,0.5)",fontSize:"12px",lineHeight:1.6 }}>Profile pictures, reading stats, book reviews, and more are on the way. Stay tuned!</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Barcode Modal */}
       {showBarcodeScan && (
@@ -917,17 +1067,19 @@ export default function BookApp() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, flexWrap: "wrap" }}>
           <Link to="/campfire" onClick={e => { if (!requireAuth("Join the Campfire to read alongside others. Create a free account to access this cozy feature!")) e.preventDefault(); }} style={{ padding: "8px 12px", background: "rgba(194,122,58,0.1)", border: "1px solid rgba(194,122,58,0.2)", borderRadius: "8px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>🔥 <span className="nav-label">Campfire</span></Link>
-          <button onClick={() => { if (requireAuth("Add friends and share book recommendations. Create a free account to connect with other readers!")) setShowFriends(true); }} style={{ padding: "8px 12px", background: "rgba(53,96,90,0.1)", border: `1px solid rgba(53,96,90,0.3)`, borderRadius: "8px", color: C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>👥 <span className="nav-label">Friends</span></button>
+          <button onClick={() => { if (requireAuth("Add friends and share book recommendations. Create a free account to connect with other readers!")) setShowFriends(true); }} style={{ padding: "8px 12px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>👥 <span className="nav-label">Friends</span>{friendRequests.length > 0 && <span style={{ background:C.copper,color:"#fff",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",fontWeight:700,marginLeft:"2px" }}>{friendRequests.length}</span>}</button>
           {isAuthenticated ? (
             <>
-              <span style={{ padding: "8px 10px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "11px", fontWeight: 600, maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>👤 {user?.email?.split("@")[0]}</span>
-              <a href="https://forms.gle/C11bVEcooZQ9CrWx5" target="_blank" rel="noreferrer" onClick={() => trackEvent("feedback_click")} style={{ padding: "8px 10px", background: "rgba(53,96,90,0.2)", border: `1px solid ${C.teal}`, borderRadius: "8px", color: C.teal, fontSize: "11px", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>💬</a>
-              <button onClick={handleSignOut} style={{ padding: "8px 10px", background: "rgba(139,58,58,0.15)", border: "1px solid rgba(139,58,58,0.3)", borderRadius: "8px", color: "#C27A3A", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
+              <button onClick={() => setShowAccount(true)} title="My Account" style={{ padding: "8px 10px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>👤</button>
+              <a href="https://forms.gle/C11bVEcooZQ9CrWx5" target="_blank" rel="noreferrer" onClick={() => trackEvent("feedback_click")} style={{ padding: "8px 10px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "11px", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>💬</a>
+              <button onClick={handleSignOut} style={{ padding: "8px 10px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
             </>
           ) : (
-            <button onClick={() => navigate("/")} style={{ padding: "8px 14px", background: `linear-gradient(135deg, ${C.copper}, #A86830)`, border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Sign Up</button>
+            <>
+              <button onClick={() => navigate("/")} style={{ padding: "8px 14px", background: `linear-gradient(135deg, ${C.copper}, #A86830)`, border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Sign Up</button>
+              <button onClick={() => setShowAbout(true)} style={{ padding: "8px 10px", background: "rgba(232,220,203,0.08)", border: "1px solid rgba(232,220,203,0.15)", borderRadius: "8px", color: C.cream, fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>About</button>
+            </>
           )}
-          <button onClick={() => setShowAbout(true)} style={{ padding: "8px 10px", background: "rgba(232,220,203,0.08)", border: "1px solid rgba(232,220,203,0.15)", borderRadius: "8px", color: C.cream, fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>About</button>
         </div>
       </nav>
 
@@ -953,12 +1105,22 @@ export default function BookApp() {
       {/* Signed-in Shelves */}
       {isAuthenticated && !activeShelf && (
         <div style={{ padding: "0 24px 16px", overflowX: "auto" }}>
-          <div style={{ display: "flex", gap: "8px", paddingBottom: "4px" }}>
+          <div style={{ display: "flex", gap: "8px", paddingBottom: "4px", alignItems: "center" }}>
             {Object.entries(shelves).map(([name, ids]) => (
               <button key={name} onClick={() => setActiveShelf(name)} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.1)", border: "1px solid rgba(194,122,58,0.25)", borderRadius: "20px", color: C.copper, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px" }}>
-                📚 {name} <span style={{ background: "rgba(194,122,58,0.25)", borderRadius: "8px", padding: "1px 6px", fontSize: "10px" }}>{ids.length}</span>
+                {name === "Recommended" ? "💌" : "📚"} {name} <span style={{ background: "rgba(194,122,58,0.25)", borderRadius: "8px", padding: "1px 6px", fontSize: "10px" }}>{ids.length}</span>
               </button>
             ))}
+            {!showNewShelfInput ? (
+              <button onClick={() => setShowNewShelfInput(true)} style={{ padding: "8px 14px", background: "rgba(53,96,90,0.15)", border: "1px dashed rgba(53,96,90,0.4)", borderRadius: "20px", color: C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>＋ New Shelf</button>
+            ) : (
+              <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                <input type="text" placeholder="Shelf name..." value={newShelfName} onChange={e => setNewShelfName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") createShelf(); if (e.key === "Escape") setShowNewShelfInput(false); }} autoFocus
+                  style={{ padding: "6px 12px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(53,96,90,0.4)", borderRadius: "8px", color: C.cream, fontSize: "12px", width: "140px" }} />
+                <button onClick={createShelf} style={{ padding: "6px 10px", background: C.teal, border: "none", borderRadius: "8px", color: "#fff", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>Add</button>
+                <button onClick={() => { setShowNewShelfInput(false); setNewShelfName(""); }} style={{ background: "none", border: "none", color: "rgba(232,220,203,0.5)", fontSize: "16px", cursor: "pointer" }}>✕</button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -969,9 +1131,24 @@ export default function BookApp() {
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
             <button onClick={() => setActiveShelf(null)} style={{ background: "none", border: "none", color: C.copper, fontSize: "14px", cursor: "pointer" }}>← Back</button>
             <h2 style={{ fontFamily: "'Playfair Display', serif", color: C.cream, margin: 0, fontSize: "22px" }}>{activeShelf}</h2>
+            {!PROTECTED_SHELVES.includes(activeShelf) && (
+              <button onClick={() => deleteShelf(activeShelf)} style={{ marginLeft: "auto", padding: "6px 14px", background: "rgba(139,58,58,0.15)", border: "1px solid rgba(139,58,58,0.3)", borderRadius: "8px", color: "#C27A3A", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>🗑 Delete Shelf</button>
+            )}
           </div>
           {shelves[activeShelf]?.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 20px", color: "rgba(232,220,203,0.5)" }}><div style={{ fontSize: "40px", marginBottom: "12px" }}>📚</div><p>No books yet. Browse and add some!</p></div>
+            activeShelf === "Recommended" ? (
+              <div style={{ textAlign: "center", padding: "60px 20px" }}>
+                <div style={{ fontSize: "48px", marginBottom: "12px" }}>💌</div>
+                <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.cream, marginBottom: "8px" }}>No recommendations yet!</h3>
+                <p style={{ color: "rgba(232,220,203,0.5)", fontSize: "14px", lineHeight: 1.6, maxWidth: "360px", margin: "0 auto 16px" }}>Invite friends to Readers' Realm so they can recommend books to you. The more friends you have, the better your recommendations get!</p>
+                <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
+                  <button onClick={() => setShowFriends(true)} style={{ padding: "10px 20px", background: `linear-gradient(135deg, ${C.copper}, #A86830)`, color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>👥 Add Friends</button>
+                  <button onClick={copyInviteLink} style={{ padding: "10px 20px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>{inviteCopied ? "Link Copied!" : "Invite Friends"}</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: "rgba(232,220,203,0.5)" }}><div style={{ fontSize: "40px", marginBottom: "12px" }}>📚</div><p>No books yet. Browse and add some!</p></div>
+            )
           ) : (
             <div className="book-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "24px" }}>
               {shelves[activeShelf].map(id => BOOKS_DB.find(b => b.id === id)).filter(Boolean).map(book => (
