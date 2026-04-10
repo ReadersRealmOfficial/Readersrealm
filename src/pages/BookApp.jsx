@@ -889,6 +889,29 @@ export default function BookApp() {
               </div>
             </div>
 
+            {/* Invite a Friend to Join */}
+            <div style={{ marginBottom:"20px",padding:"16px",background:"rgba(53,96,90,0.08)",borderRadius:"12px",border:"1px solid rgba(53,96,90,0.2)" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:C.teal,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"6px" }}>Invite a Friend to Join</div>
+              <p style={{ fontSize:"12px",color:"rgba(232,220,203,0.5)",margin:"0 0 10px",lineHeight:1.5 }}>Know someone who'd love Readers' Realm? Send them an invite link!</p>
+              <button onClick={() => {
+                const link = window.location.origin;
+                const text = `Join me on Readers' Realm — a cozy book community where we track reads, share recommendations, and read by the campfire together! 📚🔥\n\n${link}`;
+                if (navigator.share) {
+                  navigator.share({ title: "Join Readers' Realm", text, url: link }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(text).then(() => {
+                    alert("Invite link copied to clipboard! 📋 Share it with your friends.");
+                  }).catch(() => {
+                    prompt("Copy this invite link:", text);
+                  });
+                }
+              }} style={{ width:"100%",padding:"11px 16px",background:"rgba(53,96,90,0.2)",border:"1px solid rgba(53,96,90,0.35)",borderRadius:"8px",color:C.teal,fontSize:"13px",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:"8px",transition:"all 0.2s" }}
+              onMouseOver={e=>e.currentTarget.style.background="rgba(53,96,90,0.3)"}
+              onMouseOut={e=>e.currentTarget.style.background="rgba(53,96,90,0.2)"}>
+                📨 Send Invite Link
+              </button>
+            </div>
+
             {/* Friend Requests */}
             {friendRequests.length > 0 && (
               <div style={{ marginBottom:"20px" }}>
