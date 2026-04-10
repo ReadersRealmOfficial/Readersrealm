@@ -22,6 +22,7 @@ export default function Landing() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [emailOptIn, setEmailOptIn] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function Landing() {
   const handleSubmit = async () => {
     if (!email.trim() || !email.includes("@")) { setError("Please enter a valid email."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (mode === "signup" && !emailOptIn) { setError("You must agree to receive emails to create an account."); return; }
     setStatus("sending"); setError("");
 
     if (mode === "signup") {
@@ -161,7 +163,7 @@ export default function Landing() {
                 {/* Toggle signup/login */}
                 <div style={{ display:"flex",justifyContent:"center",gap:"4px",marginBottom:"24px",background:"rgba(43,30,47,0.6)",borderRadius:"10px",padding:"4px" }}>
                   <button onClick={()=>{setMode("signup");setError("")}} style={{ flex:1,padding:"10px",border:"none",borderRadius:"8px",fontSize:"13px",fontWeight:600,cursor:"pointer",color:mode==="signup"?"#fff":"rgba(232,220,203,0.5)",background:mode==="signup"?"rgba(194,122,58,0.4)":"transparent",transition:"all 0.2s" }}>Sign Up</button>
-                  <button onClick={()=>{setMode("login");setError("")}} style={{ flex:1,padding:"10px",border:"none",borderRadius:"8px",fontSize:"13px",fontWeight:600,cursor:"pointer",color:mode==="login"?"#fff":"rgba(232,220,203,0.5)",background:mode==="login"?"rgba(194,122,58,0.4)":"transparent",transition:"all 0.2s" }}>Log In</button>
+                  <button onClick={()=>{setMode("login");setError("");setEmailOptIn(false)}} style={{ flex:1,padding:"10px",border:"none",borderRadius:"8px",fontSize:"13px",fontWeight:600,cursor:"pointer",color:mode==="login"?"#fff":"rgba(232,220,203,0.5)",background:mode==="login"?"rgba(194,122,58,0.4)":"transparent",transition:"all 0.2s" }}>Log In</button>
                 </div>
 
                 {/* Google button */}
@@ -182,7 +184,17 @@ export default function Landing() {
                 <input type="password" placeholder={mode==="signup"?"Create a password (6+ characters)":"Password"} value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}
                   style={{ width:"100%",padding:"14px 18px",background:"rgba(43,30,47,0.8)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"10px",color:C.cream,fontSize:"14px",marginBottom:"14px" }} />
 
-                <button className="cta" onClick={handleSubmit} disabled={status==="sending"}
+                {mode === "signup" && (
+                  <label style={{ display:"flex",alignItems:"flex-start",gap:"10px",marginBottom:"16px",cursor:"pointer",padding:"10px 12px",background: emailOptIn ? "rgba(53,96,90,0.12)" : "rgba(232,220,203,0.03)",border: emailOptIn ? "1px solid rgba(53,96,90,0.3)" : "1px solid rgba(232,220,203,0.08)",borderRadius:"10px",transition:"all 0.2s" }}>
+                    <input type="checkbox" checked={emailOptIn} onChange={e=>setEmailOptIn(e.target.checked)}
+                      style={{ marginTop:"2px",accentColor:C.copper,width:"16px",height:"16px",cursor:"pointer",flexShrink:0 }} />
+                    <span style={{ fontSize:"12px",color:"rgba(232,220,203,0.7)",lineHeight:1.5 }}>
+                      I agree to receive emails from Readers' Realm about updates, features, and launch news. <span style={{ color:"#E87C5A",fontSize:"11px" }}>*Required</span>
+                    </span>
+                  </label>
+                )}
+
+                <button className="cta" onClick={handleSubmit} disabled={status==="sending"}}
                   style={{ width:"100%",padding:"15px 24px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",color:"#fff",fontSize:"15px",fontWeight:700,cursor:status==="sending"?"wait":"pointer",borderRadius:"10px",letterSpacing:"0.5px",transition:"all 0.3s" }}>
                   {status === "sending" ? "Please wait..." : mode === "signup" ? "Create Account & Get Access" : "Log In"}
                 </button>
