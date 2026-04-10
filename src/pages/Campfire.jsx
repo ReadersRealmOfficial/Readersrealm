@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../lib/supabase.js";
+import { BOOKS_DB } from "./BookApp.jsx";
 
 const C = { darkPurple:"#2B1E2F", copper:"#C27A3A", cream:"#E8DCCB", darkBrown:"#4A2C23", teal:"#35605A", sage:"#5B6C5D" };
 
@@ -94,11 +95,18 @@ export default function Campfire() {
     if (!isAuthenticated || !user) return;
     const loadBooks = async () => {
       try {
-        const stored = localStorage.getItem(`rr_shelves_${user.id}`);
-        if (stored) {
-          const shelves = JSON.parse(stored);
-          const cr = shelves["Currently Reading"] || [];
-          setCurrentlyReadingBooks(cr);
+        const { data, error } = await supabase
+          .from("user_shelves")
+          .select("book_ids")
+          .eq("user_id", user.id)
+          .eq("shelf_name", "Currently Reading")
+          .maybeSingle();
+        if (!error && data && data.book_ids && data.book_ids.length > 0) {
+          // book_ids are numbers like [1, 14] — look up in BOOKS_DB for full objects
+          const books = data.book_ids
+            .map((id) => BOOKS_DB.find((b) => b.id === id))
+            .filter(Boolean);
+          setCurrentlyReadingBooks(books);
         }
       } catch (e) {
         console.error("Error loading shelves:", e);
