@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "../lib/supabase.js";
 
 const C = { darkPurple:"#2B1E2F", copper:"#C27A3A", cream:"#E8DCCB", darkBrown:"#4A2C23", teal:"#35605A", sage:"#5B6C5D" };
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNi4JsCVM89WNeVAUx0Jcq3bPk7-C0UBR5Xk_Y9zXyCeTWfL5kybDMTXGGUhfJRwIg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwyPDN2FKNEogxFrAD5aamXJ4JRtovgJUBkGNO5UaOD0x9PzcF65YgCGV8IaY1_R7D/exec";
 const ADMIN_PASSWORD = "ReadersRealm2026!";
 
 // ── Date helpers ──
