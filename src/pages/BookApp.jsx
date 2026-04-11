@@ -9,11 +9,22 @@ import GuestPrompt from "../components/GuestPrompt.jsx";
 // ─── Set your own email here so YOUR activity is never tracked ───
 const OWNER_EMAIL = "l.a.t.mustapha@gmail.com"; // ← replace with your actual email address
 
-// ─── Google Analytics Helper ───
-const trackGA = (eventName, params = {}) => {
-  if (typeof window !== "undefined" && typeof window.gtag === "function") {
-    window.gtag("event", eventName, { event_category: "BookApp", ...params });
-  }
+// Save event to Supabase so admin sees ALL users (not just your browser)
+const saveEvent = async (eventName, properties = {}) => {
+  try {
+    await supabase.from("analytics_events").insert({
+      event_name: eventName,
+      page: window.location.pathname,
+      properties,
+    });
+  } catch {}
+};
+
+// trackFilter — skips owner email, saves to GA + Supabase
+const trackFilter = (filterName, value) => {
+  if (user?.email === OWNER_EMAIL) return;
+  trackGA("filter_used", { filter: filterName, value: String(value) });
+  saveEvent("filter_used", { filter: filterName, value: String(value) });
 };
 
 // ─── Color Palette ───
