@@ -6,6 +6,16 @@ import GuestPrompt from "../components/GuestPrompt.jsx";
 
 // Analytics are loaded natively in index.html (GTM + gtag)
 
+// ─── Set your own email here so YOUR activity is never tracked ───
+const OWNER_EMAIL = "l.a.t.mustapha@gmail.com"; // ← replace with your actual email address
+
+// ─── Google Analytics Helper ───
+const trackGA = (eventName, params = {}) => {
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    window.gtag("event", eventName, { event_category: "BookApp", ...params });
+  }
+};
+
 // ─── Color Palette ───
 const C = {
   darkPurple: "#2B1E2F",
@@ -607,7 +617,8 @@ export default function BookApp() {
   const handleBookClick = useCallback((book) => {
     setSelectedBook(book);
     trackEvent("book_click", { bookId: book.id, title: book.title });
-  }, []);
+    if (user?.email !== OWNER_EMAIL) trackGA("book_click", { bookId: book.id, title: book.title });
+  }, [user]);
 
   const filteredBooks = useMemo(() => {
     let books = [...BOOKS_DB];
@@ -659,8 +670,11 @@ export default function BookApp() {
     return null;
   };
 
-  // Helper to track filter usage
-  const trackFilter = (filterName, value) => { trackEvent("filter_used", { filter: filterName, value: String(value) }); };
+  // Helper to track filter usage — skips if the current user is the owner
+  const trackFilter = (filterName, value) => {
+    if (user?.email === OWNER_EMAIL) return; // don't track your own usage
+    trackGA("filter_used", { filter: filterName, value: String(value) });
+  };
 
   // ─── Filters Sidebar Content (Include/Exclude first, then Genre/etc) ───
   const FiltersContent = ({ isMobile = false }) => (
@@ -1084,22 +1098,22 @@ export default function BookApp() {
             <span style={{ color: "rgba(232,220,203,0.4)", marginRight: "8px" }}>🔍</span>
             <input type="text" placeholder="Search title or author..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: "transparent", border: "none", color: C.cream, fontSize: "14px", padding: "10px 0", width: "100%" }} />
           </div>
-          <button onClick={() => setShowBarcodeScan(true)} title="Scan barcode" style={{ padding: "10px 14px", background: "rgba(194,122,58,0.15)", border: "1px solid rgba(194,122,58,0.2)", borderRadius: "0 8px 8px 0", cursor: "pointer", color: C.copper, fontSize: "16px", display: "flex", alignItems: "center" }}>
+          <button onClick={() => { if (user?.email !== OWNER_EMAIL) trackGA("barcode_scanner_click"); setShowBarcodeScan(true); }} title="Scan barcode" style={{ padding: "10px 14px", background: "rgba(194,122,58,0.15)", border: "1px solid rgba(194,122,58,0.2)", borderRadius: "0 8px 8px 0", cursor: "pointer", color: C.copper, fontSize: "16px", display: "flex", alignItems: "center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="2" height="16"/><rect x="6" y="4" width="1" height="16"/><rect x="9" y="4" width="2" height="16"/><rect x="13" y="4" width="1" height="16"/><rect x="16" y="4" width="2" height="16"/><rect x="20" y="4" width="2" height="16"/></svg>
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, flexWrap: "wrap" }}>
-          <Link to="/campfire" onClick={e => { if (!requireAuth("Join the Campfire to read alongside others. Create a free account to access this cozy feature!")) e.preventDefault(); }} style={{ padding: "8px 12px", background: "rgba(194,122,58,0.1)", border: "1px solid rgba(194,122,58,0.2)", borderRadius: "8px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>🔥 <span className="nav-label">Campfire</span></Link>
-          <button onClick={() => { if (requireAuth("Add friends and share book recommendations. Create a free account to connect with other readers!")) setShowFriends(true); }} style={{ padding: "8px 12px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>👥 <span className="nav-label">Friends</span>{friendRequests.length > 0 && <span style={{ background:C.copper,color:"#fff",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",fontWeight:700,marginLeft:"2px" }}>{friendRequests.length}</span>}</button>
+          <Link to="/campfire" onClick={e => { if (user?.email !== OWNER_EMAIL) trackGA("campfire_nav_click"); if (!requireAuth("Join the Campfire to read alongside others. Create a free account to access this cozy feature!")) e.preventDefault(); }} style={{ padding: "8px 12px", background: "rgba(194,122,58,0.1)", border: "1px solid rgba(194,122,58,0.2)", borderRadius: "8px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>🔥 <span className="nav-label">Campfire</span></Link>
+          <button onClick={() => { if (user?.email !== OWNER_EMAIL) trackGA("friends_panel_click"); if (requireAuth("Add friends and share book recommendations. Create a free account to connect with other readers!")) setShowFriends(true); }} style={{ padding: "8px 12px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}>👥 <span className="nav-label">Friends</span>{friendRequests.length > 0 && <span style={{ background:C.copper,color:"#fff",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",fontWeight:700,marginLeft:"2px" }}>{friendRequests.length}</span>}</button>
           {isAuthenticated ? (
             <>
               <button onClick={() => setShowAccount(true)} title="My Account" style={{ padding: "8px 10px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "14px", fontWeight: 600, cursor: "pointer" }}>👤</button>
               <a href="https://forms.gle/C11bVEcooZQ9CrWx5" target="_blank" rel="noreferrer" onClick={() => trackEvent("feedback_click")} style={{ padding: "8px 10px", background: "rgba(194,122,58,0.2)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "11px", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}>💬</a>
-              <button onClick={handleSignOut} style={{ padding: "8px 10px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
+              <button onClick={() => { trackGA("signout_click"); handleSignOut(); }} style={{ padding: "8px 10px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "8px", color: C.copper, fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
             </>
           ) : (
             <>
-              <button onClick={() => navigate("/")} style={{ padding: "8px 14px", background: `linear-gradient(135deg, ${C.copper}, #A86830)`, border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Sign Up</button>
+              <button onClick={() => { trackGA("signup_nav_click"); navigate("/"); }} style={{ padding: "8px 14px", background: `linear-gradient(135deg, ${C.copper}, #A86830)`, border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>Sign Up</button>
               <button onClick={() => setShowAbout(true)} style={{ padding: "8px 10px", background: "rgba(232,220,203,0.08)", border: "1px solid rgba(232,220,203,0.15)", borderRadius: "8px", color: C.cream, fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>About</button>
             </>
           )}
