@@ -6,6 +6,13 @@ import { BOOKS_DB } from "./BookApp.jsx";
 
 const C = { darkPurple:"#2B1E2F", copper:"#C27A3A", cream:"#E8DCCB", darkBrown:"#4A2C23", teal:"#35605A", sage:"#5B6C5D" };
 
+// ─── Google Analytics Helper ───
+const trackGA = (eventName, params = {}) => {
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    window.gtag("event", eventName, { event_category: "Campfire", ...params });
+  }
+};
+
 // ─── Audio URL for campfire ambience ───
 // Place the mp3 in your public/sounds/ folder as campfire-ambience.mp3
 const CAMPFIRE_AUDIO_URL = "/sounds/campfire-ambience.mp3";
@@ -193,9 +200,11 @@ export default function Campfire() {
     if (audioPlaying) {
       audioRef.current.pause();
       setAudioPlaying(false);
+      trackGA("campfire_sound_toggle", { sound: "off" });
     } else {
       audioRef.current.play().catch(() => {});
       setAudioPlaying(true);
+      trackGA("campfire_sound_toggle", { sound: "on" });
     }
   }, [audioPlaying]);
 
@@ -227,14 +236,14 @@ export default function Campfire() {
     return () => clearInterval(timerRef.current);
   }, [timerState]);
 
-  const startTimer = () => setTimerState("running");
-  const pauseTimer = () => setTimerState("paused");
+  const startTimer = () => { setTimerState("running"); if (timerSeconds === 0) trackGA("reading_timer_start", { book: myBook || "none" }); };
+  const pauseTimer = () => { setTimerState("paused"); trackGA("reading_timer_pause", { elapsed_seconds: timerSeconds }); };
   const stopAndSaveTimer = async () => {
     setTimerState("stopped");
     const duration = timerSeconds;
     setTimerSeconds(0);
     if (duration > 0 && user) {
-      // Save reading session to localStorage
+      trackGA("reading_session_saved", { duration_seconds: duration, book: myBook || "none" });
       const sessionsKey = `rr_sessions_${user.id}`;
       const existing = JSON.parse(localStorage.getItem(sessionsKey) || "[]");
       existing.push({
@@ -256,10 +265,12 @@ export default function Campfire() {
   const joinFire = (bookTitle) => {
     setMyBook(bookTitle || "");
     setIsAtFire(true);
+    trackGA("sit_by_fire_click", { book: bookTitle || "no_book" });
   };
 
   const leaveFire = () => {
     if (timerState !== "stopped") stopAndSaveTimer();
+    trackGA("leave_fire_click", { time_spent_seconds: timerSeconds });
     setIsAtFire(false);
     setMyBook("");
     setShowBookPicker(false);
@@ -438,7 +449,7 @@ export default function Campfire() {
 
         {/* Join button */}
         {!isAtFire && !showBookPicker && (
-          <button onClick={() => setShowBookPicker(true)} style={{
+          <button onClick={() => { setShowBookPicker(true); trackGA("sit_by_fire_btn_click"); }} style={{
             background:"linear-gradient(135deg, rgba(255,115,25,0.16), rgba(255,65,10,0.07))",
             border:"1px solid rgba(255,130,40,0.22)", color:"#f0dcc0", fontSize:15,
             padding:"12px 36px", borderRadius:30, cursor:"pointer", letterSpacing:1, fontFamily:"inherit",
