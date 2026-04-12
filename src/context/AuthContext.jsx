@@ -21,8 +21,12 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, username) => {
     const { data, error } = await supabase.auth.signUp({ email, password })
+    if (!error && data?.user && username) {
+      // Save username to profiles table (created automatically by Supabase trigger)
+      await supabase.from('profiles').update({ username: username.trim().toLowerCase() }).eq('id', data.user.id)
+    }
     return { data, error }
   }
 
