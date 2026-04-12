@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { supabase } from "../lib/supabase";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxNi4JsCVM89WNeVAUx0Jcq3bPk7-C0UBR5Xk_Y9zXyCeTWfL5kybDMTXGGUhfJRwIg/exec";
 
@@ -27,6 +28,7 @@ export default function Landing() {
   const [mode, setMode] = useState("signup"); // signup | login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [emailOptIn, setEmailOptIn] = useState(false);
@@ -63,10 +65,18 @@ export default function Landing() {
     if (!email.trim() || !email.includes("@")) { setError("Please enter a valid email."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     if (mode === "signup" && !emailOptIn) { setError("You must agree to receive emails to create an account."); return; }
+    if (mode === "signup") {
+      const trimmedUsername = username.trim().toLowerCase();
+      if (!trimmedUsername) { setError("Please choose a username."); return; }
+      if (!/^[a-z0-9_]+$/.test(trimmedUsername)) { setError("Username can only contain lowercase letters, numbers, and underscores."); return; }
+      if (trimmedUsername.length < 3) { setError("Username must be at least 3 characters."); return; }
+      const { data: existing } = await supabase.from("profiles").select("id").eq("username", trimmedUsername).maybeSingle();
+      if (existing) { setError("That username is already taken. Please choose another."); return; }
+    }
     setStatus("sending"); setError("");
 
     if (mode === "signup") {
-      const { error: err } = await signUp(email.trim(), password);
+      const { error: err } = await signUp(email.trim(), password, username.trim().toLowerCase());
       if (err) {
         setStatus("idle");
         if (err.message.includes("already registered")) setError("This email is already registered. Try logging in.");
@@ -74,8 +84,7 @@ export default function Landing() {
       } else {
         await logToSheet(email.trim());
         setStatus("done");
-        // Supabase may require email confirmation — check your Supabase Auth settings
-        // If email confirmation is OFF, user is logged in immediately
+        navigate("/welcome");
       }
     } else {
       const { error: err } = await signIn(email.trim(), password);
@@ -189,7 +198,15 @@ export default function Landing() {
                 <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)}
                   style={{ width:"100%",padding:"14px 18px",background:"rgba(43,30,47,0.8)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"10px",color:C.cream,fontSize:"14px",marginBottom:"10px" }} />
                 <input type="password" placeholder={mode==="signup"?"Create a password (6+ characters)":"Password"} value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}
-                  style={{ width:"100%",padding:"14px 18px",background:"rgba(43,30,47,0.8)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"10px",color:C.cream,fontSize:"14px",marginBottom:"14px" }} />
+                  style={{ width:"100%",padding:"14px 18px",background:"rgba(43,30,47,0.8)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"10px",color:C.cream,fontSize:"14px",marginBottom:"10px" }} />
+
+                {mode === "signup" && (
+                  <div style={{ marginBottom:"14px" }}>
+                    <input type="text" placeholder="Choose a username (e.g. bookworm_42)" value={username} onChange={e=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
+                      style={{ width:"100%",padding:"14px 18px",background:"rgba(43,30,47,0.8)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"10px",color:C.cream,fontSize:"14px" }} />
+                    <div style={{ color:"rgba(232,220,203,0.35)",fontSize:"11px",marginTop:"5px",paddingLeft:"4px" }}>Friends will find you by this username. Lowercase letters, numbers, and underscores only.</div>
+                  </div>
+                )}
 
                 {mode === "signup" && (
                   <label style={{ display:"flex",alignItems:"flex-start",gap:"10px",marginBottom:"16px",cursor:"pointer",padding:"10px 12px",background: emailOptIn ? "rgba(53,96,90,0.12)" : "rgba(232,220,203,0.03)",border: emailOptIn ? "1px solid rgba(53,96,90,0.3)" : "1px solid rgba(232,220,203,0.08)",borderRadius:"10px",transition:"all 0.2s" }}>
