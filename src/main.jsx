@@ -6,6 +6,7 @@ import Landing from './pages/Landing.jsx'
 import BookApp from './pages/BookApp.jsx'
 import Campfire from './pages/Campfire.jsx'
 import Admin from './pages/Admin.jsx'
+import Welcome from './pages/Welcome.jsx'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/app" element={<BookApp />} />
           <Route path="/campfire" element={<Campfire />} />
           <Route path="/adminaccess" element={<Admin />} />
+          <Route path="/welcome" element={<Welcome />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
