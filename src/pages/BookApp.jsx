@@ -7,24 +7,13 @@ import GuestPrompt from "../components/GuestPrompt.jsx";
 // Analytics are loaded natively in index.html (GTM + gtag)
 
 // ─── Set your own email here so YOUR activity is never tracked ───
-const OWNER_EMAIL = "l.a.t.mustapha@gmail.com"; // ← replace with your actual email address
+const OWNER_EMAIL = "YOUR_EMAIL_HERE"; // ← replace with your actual email address
 
-// Save event to Supabase so admin sees ALL users (not just your browser)
-const saveEvent = async (eventName, properties = {}) => {
-  try {
-    await supabase.from("analytics_events").insert({
-      event_name: eventName,
-      page: window.location.pathname,
-      properties,
-    });
-  } catch {}
-};
-
-// trackFilter — skips owner email, saves to GA + Supabase
-const trackFilter = (filterName, value) => {
-  if (user?.email === OWNER_EMAIL) return;
-  trackGA("filter_used", { filter: filterName, value: String(value) });
-  saveEvent("filter_used", { filter: filterName, value: String(value) });
+// ─── Google Analytics Helper ───
+const trackGA = (eventName, params = {}) => {
+  if (typeof window !== "undefined" && typeof window.gtag === "function") {
+    window.gtag("event", eventName, { event_category: "BookApp", ...params });
+  }
 };
 
 // ─── Color Palette ───
@@ -458,6 +447,7 @@ export default function BookApp() {
 
   // Account & username
   const [showAccount, setShowAccount] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameInput, setUsernameInput] = useState("");
   const [usernameError, setUsernameError] = useState("");
@@ -516,6 +506,7 @@ export default function BookApp() {
       // Load username
       const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
       if (profile?.username) { setUsername(profile.username); setUsernameInput(profile.username); }
+      setProfileLoaded(true);
       // Friends
       const { data: f } = await supabase.from("friendships")
         .select("*, requester:profiles!friendships_requester_id_fkey(id,email,display_name,username), addressee:profiles!friendships_addressee_id_fkey(id,email,display_name,username)")
@@ -577,7 +568,7 @@ export default function BookApp() {
   // Delete shelf
   const deleteShelf = async (name) => {
     if (PROTECTED_SHELVES.includes(name)) return;
-    if (!window.confirm(`Delete "${name}" shelf? Books won't be removed from your library.`)) return;
+    if (!window.confirm(`Delete "${name}" shelf?`)) return;
     setShelves(prev => { const u = { ...prev }; delete u[name]; return u; });
     if (activeShelf === name) setActiveShelf(null);
     // Also delete from Supabase
@@ -771,7 +762,7 @@ export default function BookApp() {
               </div>
               {(
                 <div style={{ marginTop: "12px", position: "relative", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button onClick={() => { if (requireAuth("Save books to your personal shelves! Create a free account to start organizing your reading list.")) setShowShelfPicker(showShelfPicker === book.id ? null : book.id); }} style={{ padding: "8px 16px", background: shelf ? C.teal : "rgba(194,122,58,0.2)", border: `1px solid ${shelf ? C.teal : C.copper}`, borderRadius: "6px", color: shelf ? "#fff" : C.copper, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                  <button onClick={() => { if (requireAuth("Save books to your personal shelves! Create a free account to start organizing your reading list.")) setShowShelfPicker(showShelfPicker === book.id ? null : book.id); }} style={{ padding: "8px 16px", background: shelf ? C.teal : "rgba(53,96,90,0.2)", border: `1px solid ${C.teal}`, borderRadius: "6px", color: shelf ? "#fff" : C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                     {shelf ? `📚 ${shelf}` : "＋ Add to Shelf"}
                   </button>
                   {isAuthenticated && friends.length > 0 && (
@@ -781,10 +772,10 @@ export default function BookApp() {
                   )}
                   {book.isbn && (
                     <>
-                      <a href={`https://bookshop.org/a/123043/${book.isbn}`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "bookshop", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(91,108,93,0.2)", border: `1px solid ${C.sage}`, borderRadius: "6px", color: C.sage, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <a href={`https://bookshop.org/a/123043/${book.isbn}`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "bookshop", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "6px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                         🛒 Bookshop.org
                       </a>
-                      <a href={`https://www.amazon.com/s?k=${book.isbn}&tag=readersreal0e-20`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "amazon", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(232,220,203,0.06)", border: "1px solid rgba(232,220,203,0.15)", borderRadius: "6px", color: "rgba(232,220,203,0.6)", fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <a href={`https://www.amazon.com/s?k=${book.isbn}&tag=readersreal0e-20`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "amazon", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "6px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                         🛍️ Amazon
                       </a>
                     </>
@@ -894,6 +885,37 @@ export default function BookApp() {
 
       {/* Guest Prompt */}
       {guestPrompt && <GuestPrompt message={guestPrompt} onClose={() => setGuestPrompt(null)} />}
+
+      {/* Username Setup Modal — shown to existing users who never set a username */}
+      {isAuthenticated && profileLoaded && !username && (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(8px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }}>
+          <div style={{ background:"linear-gradient(160deg,#2B1E2F,#1a1220)",borderRadius:"18px",maxWidth:"420px",width:"100%",padding:"36px 32px",border:"1px solid rgba(194,122,58,0.3)",textAlign:"center" }}>
+            <div style={{ fontSize:"40px",marginBottom:"16px" }}>👤</div>
+            <h2 style={{ fontFamily:"'Playfair Display',serif",color:"#E8DCCB",fontSize:"22px",fontWeight:700,margin:"0 0 10px" }}>Choose a Username</h2>
+            <p style={{ color:"rgba(232,220,203,0.6)",fontSize:"14px",margin:"0 0 24px",lineHeight:1.5 }}>
+              Friends will use this to find and connect with you. You can't skip this step.
+            </p>
+            <input
+              type="text"
+              placeholder="e.g. bookworm_42"
+              value={usernameInput}
+              onChange={e => setUsernameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              onKeyDown={e => e.key === "Enter" && saveUsername()}
+              style={{ width:"100%",padding:"14px 18px",background:"rgba(43,30,47,0.8)",border:"1px solid rgba(194,122,58,0.3)",borderRadius:"10px",color:"#E8DCCB",fontSize:"14px",marginBottom:"10px",boxSizing:"border-box" }}
+            />
+            {usernameError && <div style={{ color:"#C27A3A",fontSize:"12px",marginBottom:"10px" }}>{usernameError}</div>}
+            <div style={{ color:"rgba(232,220,203,0.35)",fontSize:"11px",marginBottom:"20px" }}>
+              Lowercase letters, numbers, and underscores only. Min 3 characters.
+            </div>
+            <button
+              onClick={saveUsername}
+              style={{ width:"100%",padding:"14px",background:"linear-gradient(135deg,#C27A3A,#A86830)",border:"none",borderRadius:"10px",color:"#fff",fontSize:"15px",fontWeight:700,cursor:"pointer" }}
+            >
+              Set Username & Continue
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Friends & Recommendations Panel */}
       {showFriends && isAuthenticated && (
