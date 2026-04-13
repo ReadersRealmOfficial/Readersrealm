@@ -149,7 +149,7 @@ export default function Campfire() {
   useEffect(() => {
     if (!isAtFire || !isAuthenticated || !user) return;
 
-    const roomId = fridayNight ? "campfire-friday-night" : "campfire-room";
+    const roomId = eveningEvent ? "campfire-friday-night" : "campfire-room";
     const channel = supabase.channel(roomId, {
       config: { presence: { key: user.id } },
     });
@@ -180,7 +180,7 @@ export default function Campfire() {
       channel.untrack();
       supabase.removeChannel(channel);
     };
-  }, [isAtFire, isAuthenticated, user, myBook, fridayNight, displayName]);
+  }, [isAtFire, isAuthenticated, user, myBook, eveningEvent, displayName]);
 
   // ─── Audio setup (looped) ───
   useEffect(() => {
