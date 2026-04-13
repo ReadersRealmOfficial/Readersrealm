@@ -289,6 +289,10 @@ export default function Campfire() {
         @keyframes readerAppear { from{opacity:0;transform:translate(-50%,-50%) scale(0.7)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
         @keyframes pulseGlow { 0%,100%{box-shadow:0 0 8px rgba(255,140,40,0.15)} 50%{box-shadow:0 0 22px rgba(255,140,40,0.45)} }
         @keyframes bannerShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes flicker1 { 0%,100%{transform:scaleX(1) scaleY(1)} 25%{transform:scaleX(0.86) scaleY(1.1)} 50%{transform:scaleX(1.08) scaleY(0.94)} 75%{transform:scaleX(0.92) scaleY(1.06)} }
+        @keyframes flicker2 { 0%,100%{transform:scaleX(1) scaleY(1) rotate(-1deg)} 33%{transform:scaleX(1.1) scaleY(0.9) rotate(2.5deg)} 66%{transform:scaleX(0.88) scaleY(1.12) rotate(-2deg)} }
+        @keyframes flicker3 { 0%,100%{transform:scaleX(0.94) scaleY(1)} 40%{transform:scaleX(1.08) scaleY(1.14)} 80%{transform:scaleX(0.96) scaleY(0.93)} }
+        @keyframes groundGlow { 0%,100%{opacity:0.85;transform:scaleX(1)} 50%{opacity:1;transform:scaleX(1.1)} }
         .vol-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#ffa050; cursor:pointer; border:2px solid rgba(255,255,255,0.2); }
         .vol-slider::-webkit-slider-runnable-track { height:4px; background:rgba(255,255,255,0.15); border-radius:2px; }
         .vol-slider { -webkit-appearance:none; width:90px; cursor:pointer; background:transparent; }
@@ -373,12 +377,22 @@ export default function Campfire() {
 
       {/* ─── Main Campfire Scene ─── */}
       <div className="fire-scene" style={{ position:"relative", width:"100%", maxWidth:600, margin:"0 auto", height:420, marginTop:10 }}>
-        {/* Ambient glow */}
-        <div style={{ position:"absolute", left:"50%", top:"48%", width:350, height:220, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(255,100,15,0.14) 0%, rgba(255,60,5,0.05) 45%, transparent 70%)", animation:"glowPulse 2.5s ease-in-out infinite", pointerEvents:"none" }} />
-
-        {/* Fire emoji (fallback — replace with GIF if you have it inline) */}
-        <div style={{ position:"absolute", left:"50%", top:"44%", transform:"translate(-50%,-50%)", fontSize:80, zIndex:5, pointerEvents:"none", filter:"drop-shadow(0 0 30px rgba(255,100,20,0.5))", animation:"glowPulse 2s ease-in-out infinite" }}>
-          🔥
+        {/* Realistic CSS Fire */}
+        <div style={{ position:"absolute", left:"50%", top:"52%", transform:"translateX(-50%)", width:160, height:200, zIndex:5, pointerEvents:"none" }}>
+          {/* Ground light spread */}
+          <div style={{ position:"absolute", bottom:-8, left:"50%", marginLeft:-130, width:260, height:36, background:"radial-gradient(ellipse, rgba(255,210,60,0.95) 0%, rgba(255,120,0,0.55) 45%, transparent 70%)", filter:"blur(10px)", borderRadius:"50%", animation:"groundGlow 1.6s ease-in-out infinite", transformOrigin:"center center" }} />
+          {/* Outer dark red flame */}
+          <div style={{ position:"absolute", bottom:14, left:"50%", marginLeft:-75, width:150, height:170, background:"radial-gradient(ellipse at 50% 95%, rgba(180,25,0,0.95) 0%, rgba(160,15,0,0.7) 35%, transparent 72%)", filter:"blur(14px)", borderRadius:"50% 50% 35% 65% / 55% 55% 45% 45%", animation:"flicker1 2.1s ease-in-out infinite", transformOrigin:"bottom center" }} />
+          {/* Secondary dark flame */}
+          <div style={{ position:"absolute", bottom:14, left:"50%", marginLeft:-58, width:116, height:150, background:"radial-gradient(ellipse at 50% 95%, rgba(210,35,0,0.9) 0%, rgba(190,20,0,0.65) 40%, transparent 72%)", filter:"blur(10px)", borderRadius:"45% 55% 30% 70% / 60% 60% 40% 40%", animation:"flicker2 1.7s ease-in-out infinite", transformOrigin:"bottom center" }} />
+          {/* Mid orange flame */}
+          <div style={{ position:"absolute", bottom:14, left:"50%", marginLeft:-46, width:92, height:130, background:"radial-gradient(ellipse at 50% 95%, rgba(255,75,0,0.98) 0%, rgba(240,55,0,0.75) 40%, transparent 72%)", filter:"blur(7px)", borderRadius:"50% 50% 30% 70% / 60% 60% 40% 40%", animation:"flicker3 1.3s ease-in-out infinite", transformOrigin:"bottom center" }} />
+          {/* Inner yellow-orange flame */}
+          <div style={{ position:"absolute", bottom:14, left:"50%", marginLeft:-32, width:64, height:100, background:"radial-gradient(ellipse at 50% 95%, rgba(255,155,0,1) 0%, rgba(255,100,0,0.85) 40%, transparent 74%)", filter:"blur(4px)", borderRadius:"50% 50% 30% 70% / 60% 60% 40% 40%", animation:"flicker1 1.0s ease-in-out infinite reverse", transformOrigin:"bottom center" }} />
+          {/* Bright yellow core */}
+          <div style={{ position:"absolute", bottom:14, left:"50%", marginLeft:-20, width:40, height:65, background:"radial-gradient(ellipse at 50% 95%, rgba(255,240,120,1) 0%, rgba(255,190,30,0.9) 45%, transparent 75%)", filter:"blur(2.5px)", borderRadius:"50% 50% 30% 70% / 60% 60% 40% 40%", animation:"flicker2 0.85s ease-in-out infinite", transformOrigin:"bottom center" }} />
+          {/* White-hot base */}
+          <div style={{ position:"absolute", bottom:16, left:"50%", marginLeft:-13, width:26, height:22, background:"rgba(255,255,230,0.98)", filter:"blur(3px)", borderRadius:"50%", animation:"groundGlow 0.7s ease-in-out infinite" }} />
         </div>
 
         {/* Rising embers */}
