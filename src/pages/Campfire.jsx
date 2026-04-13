@@ -39,16 +39,16 @@ const RISING_EMBERS = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 // ─── Helpers ───
-function isFridayNightEvent() {
+function isEveningEvent() {
   const now = new Date();
   // Convert to EST (UTC-5)
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
   const est = new Date(utc - 5 * 3600000);
-  return est.getDay() === 5 && est.getHours() >= 18 && est.getHours() < 23;
+  return est.getHours() >= 19 && est.getHours() < 22;
 }
 
 function getCapacity() {
-  return isFridayNightEvent() ? FRIDAY_NIGHT_CAP : NORMAL_CAP;
+  return isEveningEvent() ? FRIDAY_NIGHT_CAP : NORMAL_CAP;
 }
 
 function circlePos(index, total, cx, cy, rx, ry) {
@@ -90,8 +90,13 @@ export default function Campfire() {
   const timerRef = useRef(null);
   const [displayName, setDisplayName] = useState("");
 
-  // Friday event
-  const fridayNight = isFridayNightEvent();
+  // Session history
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [editingSession, setEditingSession] = useState(null); // { index, value }
+
+  // Evening event (every night 7-10pm EST)
+  const eveningEvent = isEveningEvent();
   const capacity = getCapacity();
 
   useEffect(() => {
@@ -238,6 +243,13 @@ export default function Campfire() {
 
   const startTimer = () => { setTimerState("running"); if (timerSeconds === 0) trackGA("reading_timer_start", { book: myBook || "none" }); };
   const pauseTimer = () => { setTimerState("paused"); trackGA("reading_timer_pause", { elapsed_seconds: timerSeconds }); };
+  const loadSessions = () => {
+    if (!user) return;
+    const sessionsKey = `rr_sessions_${user.id}`;
+    const stored = JSON.parse(localStorage.getItem(sessionsKey) || "[]");
+    setSessions(stored.slice().reverse()); // most recent first
+  };
+
   const stopAndSaveTimer = async () => {
     setTimerState("stopped");
     const duration = timerSeconds;
@@ -249,9 +261,10 @@ export default function Campfire() {
       existing.push({
         date: new Date().toISOString(),
         durationSeconds: duration,
-        book: myBook || "No book selected",
+        book: myBook || "",
       });
       localStorage.setItem(sessionsKey, JSON.stringify(existing));
+      setSessions(existing.slice().reverse());
       notify(`Reading session saved! ${formatTimer(duration)} logged 📖`);
     }
   };
@@ -259,6 +272,24 @@ export default function Campfire() {
   const notify = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Load session history from localStorage
+  useEffect(() => {
+    if (user) loadSessions();
+  }, [user]);
+
+  const saveSessionBook = (reversedIndex, newBook) => {
+    if (!user) return;
+    const sessionsKey = `rr_sessions_${user.id}`;
+    const existing = JSON.parse(localStorage.getItem(sessionsKey) || "[]");
+    const realIndex = existing.length - 1 - reversedIndex;
+    if (realIndex >= 0) {
+      existing[realIndex].book = newBook.trim();
+      localStorage.setItem(sessionsKey, JSON.stringify(existing));
+      setSessions(existing.slice().reverse());
+    }
+    setEditingSession(null);
   };
 
   // ─── Join / Leave fire ───
@@ -304,24 +335,24 @@ export default function Campfire() {
         <div key={s.id} style={{ position:"absolute", left:`${s.x}%`, top:`${s.y}%`, width:s.size, height:s.size, borderRadius:"50%", background:"#fff", animation:`twinkle ${2+s.delay}s ease-in-out infinite`, animationDelay:`${s.delay}s` }} />
       ))}
 
-      {/* ─── Friday Night Event Banner (always visible at top) ─── */}
+      {/* ─── Nightly Event Banner ─── */}
       <div style={{
-        textAlign:"center", padding:"10px 20px",
-        background: fridayNight
-          ? "linear-gradient(90deg, rgba(255,80,20,0.15), rgba(255,140,40,0.28), rgba(255,80,20,0.15))"
-          : "linear-gradient(90deg, rgba(194,122,58,0.06), rgba(194,122,58,0.14), rgba(194,122,58,0.06))",
-        backgroundSize: fridayNight ? "200% 100%" : undefined,
-        animation: fridayNight ? "bannerShimmer 4s linear infinite" : undefined,
-        borderBottom:"1px solid rgba(194,122,58,0.12)",
+        textAlign:"center", padding:"13px 20px",
+        background: eveningEvent
+          ? "linear-gradient(90deg, rgba(255,80,20,0.18), rgba(255,140,40,0.32), rgba(255,80,20,0.18))"
+          : "linear-gradient(90deg, rgba(194,122,58,0.07), rgba(194,122,58,0.16), rgba(194,122,58,0.07))",
+        backgroundSize: eveningEvent ? "200% 100%" : undefined,
+        animation: eveningEvent ? "bannerShimmer 4s linear infinite" : undefined,
+        borderBottom:"1px solid rgba(194,122,58,0.15)",
         position:"relative", zIndex:20,
       }}>
-        {fridayNight ? (
-          <span style={{ fontSize:13, color:"#ffa050", fontWeight:700 }}>
-            🔥 Friday Night Fireside is LIVE! Read with up to {FRIDAY_NIGHT_CAP} readers in one campfire · 6 PM – 11 PM EST
+        {eveningEvent ? (
+          <span style={{ fontSize:15, color:"#ffa050", fontWeight:700, letterSpacing:0.3 }}>
+            🔥 Nightly Campfire is LIVE! Come read alongside others — every night 7 PM – 10 PM EST
           </span>
         ) : (
-          <span style={{ fontSize:12, color:"rgba(232,220,203,0.5)" }}>
-            🔥 <strong style={{ color:C.copper }}>Friday Night Fireside</strong> — Every Friday 6 PM – 11 PM EST · One big campfire, up to {FRIDAY_NIGHT_CAP} readers together
+          <span style={{ fontSize:14, color:"rgba(232,220,203,0.6)" }}>
+            🔥 <strong style={{ color:C.copper }}>Nightly Campfire</strong> — Every night 7 PM – 10 PM EST · A cozy space to read together
           </span>
         )}
       </div>
@@ -372,6 +403,9 @@ export default function Campfire() {
         </h1>
         <p style={{ fontSize:13, opacity:0.4, marginTop:6, letterSpacing:1, fontStyle:"italic" }}>
           A cozy space to read alongside others. No chat, no pressure — just the warmth of shared reading.
+        </p>
+        <p style={{ fontSize:12, color:"rgba(232,220,203,0.25)", fontStyle:"italic", marginTop:6 }}>
+          The fire crackles softly… waiting for more readers to join.
         </p>
       </div>
 
@@ -448,15 +482,7 @@ export default function Campfire() {
           );
         })}
 
-        {/* Empty state when alone */}
-        {isAtFire && readers.length <= 1 && (
-          <div style={{ position:"absolute", left:"50%", top:"75%", transform:"translateX(-50%)", textAlign:"center", zIndex:10, animation:"fadeIn 1s ease-out 1s both" }}>
-            <p style={{ fontSize:12, color:"rgba(232,220,203,0.3)", fontStyle:"italic", maxWidth:280 }}>
-              The fire crackles softly… waiting for more readers to join.
-            </p>
-          </div>
-        )}
-      </div>
+      </div>{/* end fire-scene */}
 
       {/* ─── Controls ─── */}
       <div style={{ textAlign:"center", position:"relative", zIndex:20, marginTop:-10, animation:"fadeIn 1s ease-out 0.5s both" }}>
@@ -567,6 +593,13 @@ export default function Campfire() {
             </div>
 
             <div style={{ display:"flex", gap:14, justifyContent:"center", marginTop:4 }}>
+              <button onClick={() => { loadSessions(); setShowHistory(true); }} style={{
+                background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)",
+                color:"rgba(232,220,203,0.4)", fontSize:12, padding:"8px 16px", borderRadius:16,
+                cursor:"pointer", fontFamily:"inherit",
+              }}>
+                📖 My History
+              </button>
               <button onClick={leaveFire} style={{
                 background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)",
                 color:"#645444", fontSize:12, padding:"8px 16px", borderRadius:16,
@@ -579,14 +612,76 @@ export default function Campfire() {
         )}
       </div>
 
-      {/* ─── Coming Soon (removed: ambient fire sounds, whisper mode) ─── */}
+      {/* ─── Session History Modal ─── */}
+      {showHistory && (
+        <div onClick={() => { setShowHistory(false); setEditingSession(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(6px)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"linear-gradient(160deg,#1a1020,#100c18)", borderRadius:"18px", maxWidth:"480px", width:"100%", maxHeight:"80vh", overflowY:"auto", padding:"28px", border:"1px solid rgba(194,122,58,0.2)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
+              <h2 style={{ fontFamily:"'Playfair Display',serif", color:"#f0dcc0", margin:0, fontSize:"20px" }}>📖 Reading History</h2>
+              <button onClick={() => { setShowHistory(false); setEditingSession(null); }} style={{ background:"none", border:"none", color:"rgba(232,220,203,0.4)", fontSize:"20px", cursor:"pointer" }}>✕</button>
+            </div>
+            {sessions.length === 0 ? (
+              <p style={{ color:"rgba(232,220,203,0.4)", fontSize:"13px", fontStyle:"italic", textAlign:"center", padding:"20px 0" }}>No sessions logged yet. Start a reading session and hit Stop & Save!</p>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+                {sessions.map((s, i) => {
+                  const date = new Date(s.date);
+                  const dateStr = date.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+                  const timeStr = date.toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit" });
+                  const mins = Math.floor(s.durationSeconds / 60);
+                  const secs = s.durationSeconds % 60;
+                  const durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                  const noBook = !s.book || s.book === "No book selected";
+                  const isEditing = editingSession?.index === i;
+                  return (
+                    <div key={i} style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(194,122,58,0.1)", borderRadius:"12px", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"6px" }}>
+                        <span style={{ fontSize:"12px", color:"rgba(232,220,203,0.4)" }}>{dateStr} · {timeStr}</span>
+                        <span style={{ fontSize:"13px", fontWeight:700, color:"#ffa050" }}>🕯 {durationStr}</span>
+                      </div>
+                      {isEditing ? (
+                        <div style={{ display:"flex", gap:"8px", marginTop:"6px" }}>
+                          <input
+                            autoFocus
+                            type="text"
+                            value={editingSession.value}
+                            onChange={e => setEditingSession({ index: i, value: e.target.value })}
+                            onKeyDown={e => { if (e.key === "Enter") saveSessionBook(i, editingSession.value); if (e.key === "Escape") setEditingSession(null); }}
+                            placeholder="Enter book title…"
+                            style={{ flex:1, padding:"7px 12px", background:"rgba(43,30,47,0.9)", border:"1px solid rgba(194,122,58,0.4)", borderRadius:"8px", color:"#f0dcc0", fontSize:"13px" }}
+                          />
+                          <button onClick={() => saveSessionBook(i, editingSession.value)} style={{ padding:"7px 14px", background:"linear-gradient(135deg,#C27A3A,#A86830)", border:"none", borderRadius:"8px", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Save</button>
+                          <button onClick={() => setEditingSession(null)} style={{ padding:"7px 10px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"8px", color:"rgba(232,220,203,0.5)", fontSize:"12px", cursor:"pointer" }}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+                          <span style={{ fontSize:"13px", color: noBook ? "rgba(232,220,203,0.3)" : "#f0dcc0", fontStyle: noBook ? "italic" : "normal", flex:1 }}>
+                            {noBook ? "No book recorded" : `📚 ${s.book}`}
+                          </span>
+                          {noBook && (
+                            <button onClick={() => setEditingSession({ index: i, value: "" })} style={{ padding:"4px 10px", background:"rgba(194,122,58,0.12)", border:"1px solid rgba(194,122,58,0.25)", borderRadius:"6px", color:"#C27A3A", fontSize:"11px", cursor:"pointer", whiteSpace:"nowrap" }}>
+                              + Add book
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Coming Soon ─── */}
       <div style={{ padding:"24px 32px", borderTop:"1px solid rgba(232,220,203,0.06)", textAlign:"center", background:"rgba(26,18,32,0.5)", marginTop:30 }}>
         <div style={{ maxWidth:500, margin:"0 auto" }}>
           <div style={{ fontSize:11, letterSpacing:2, color:C.copper, fontWeight:600, textTransform:"uppercase", marginBottom:8 }}>
             Coming Soon to the Campfire
           </div>
           <p style={{ fontSize:13, color:"rgba(232,220,203,0.5)", lineHeight:1.7 }}>
-            📅 Friday Night Fireside events with bigger fires · 📸 Shareable streak badges · 📖 Book Club campfire rooms
+            📸 Shareable streak badges · 📖 Book Club campfire rooms · 🏆 Monthly reading challenges
           </p>
         </div>
       </div>
