@@ -1153,6 +1153,11 @@ export default function BookApp() {
         </div>
       </nav>
 
+      {/* Nightly Campfire Banner */}
+      <Link to="/campfire" onClick={e => { if (!requireAuth("Join the Campfire to read alongside others. Create a free account to access this cozy feature!")) e.preventDefault(); }} style={{ display:"block", textAlign:"center", padding:"9px 20px", background:"linear-gradient(90deg, rgba(194,122,58,0.06), rgba(194,122,58,0.13), rgba(194,122,58,0.06))", borderBottom:"1px solid rgba(194,122,58,0.12)", textDecoration:"none", color:C.cream, fontSize:"13px", position:"relative", zIndex:40 }}>
+        🔥 <strong style={{ color:C.copper }}>Nightly Campfire</strong> — Read alongside others every night 7 PM – 10 PM EST <span style={{ color:"rgba(232,220,203,0.4)", fontSize:"11px" }}>→ Join</span>
+      </Link>
+
       {/* Mobile Filter Button */}
       <div className="mobile-filter-btn" style={{ display: "none", position: "sticky", top: "62px", zIndex: 90, padding: "8px 20px", background: "rgba(26,18,32,0.95)" }}>
         <button onClick={() => setShowMobileFilters(true)} style={{ width: "100%", padding: "12px", background: "rgba(194,122,58,0.15)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "8px", color: C.copper, fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
