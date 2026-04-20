@@ -40,11 +40,14 @@ const RISING_EMBERS = Array.from({ length: 20 }, (_, i) => ({
 
 // ─── Helpers ───
 function isEveningEvent() {
-  const now = new Date();
-  // Convert to EST (UTC-5)
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const est = new Date(utc - 5 * 3600000);
-  return est.getHours() >= 19 && est.getHours() < 22;
+  const hour = parseInt(
+    new Date().toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      hour12: false,
+    })
+  );
+  return hour >= 19 && hour < 22;
 }
 
 function getCapacity() {
