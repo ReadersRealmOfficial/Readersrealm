@@ -91,6 +91,7 @@ export default function Campfire() {
   const [timerState, setTimerState] = useState("stopped"); // stopped | running | paused
   const [timerSeconds, setTimerSeconds] = useState(0);
   const timerRef = useRef(null);
+  const channelRef = useRef(null);
   const [displayName, setDisplayName] = useState("");
 
   // Session history
@@ -149,41 +150,69 @@ export default function Campfire() {
 
   // ─── Supabase Realtime Presence for actual readers ───
   // Only real users appear around the fire — no fake/mock users
-  useEffect(() => {
-    if (!isAtFire || !isAuthenticated || !user) return;
+ // ─── Effect 1: Channel setup ───────────────────────────────────────────────
+useEffect(() => {
+  if (!isAtFire || !isAuthenticated || !user) return;
 
-    const roomId = eveningEvent ? "campfire-friday-night" : "campfire-room";
-    const channel = supabase.channel(roomId, {
-      config: { presence: { key: user.id } },
-    });
+  const roomId = eveningEvent ? "campfire-friday-night" : "campfire-room";
 
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      const online = Object.values(state).flat().map((p) => ({
+  const channel = supabase.channel(roomId, {
+    config: { presence: { key: user.id } },
+  });
+
+  channelRef.current = channel;
+
+  channel.on("presence", { event: "sync" }, () => {
+    const state = channel.presenceState();
+
+    const seen = new Set();
+    const online = Object.values(state)
+      .flat()
+      .filter((p) => {
+        if (seen.has(p.user_id)) return false;
+        seen.add(p.user_id);
+        return true;
+      })
+      .map((p) => ({
         id: p.user_id,
         name: p.display_name || "Reader",
         book: p.book || "",
         isYou: p.user_id === user.id,
       }));
-      setReaders(online);
-    });
 
-    channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel.track({
-          user_id: user.id,
-          display_name: displayName || user.email?.split("@")[0] || "Reader",
-          book: myBook,
-          online_at: new Date().toISOString(),
-        });
-      }
-    });
+    setReaders(online);
+  });
 
-    return () => {
-      channel.untrack();
-      supabase.removeChannel(channel);
-    };
-  }, [isAtFire, isAuthenticated, user, myBook, eveningEvent, displayName]);
+  channel.subscribe(async (status) => {
+    if (status === "SUBSCRIBED") {
+      await channel.track({
+        user_id: user.id,
+        display_name: displayName || user.email?.split("@")[0] || "Reader",
+        book: myBook,
+        online_at: new Date().toISOString(),
+      });
+    }
+  });
+
+  return () => {
+    channelRef.current = null;
+    channel.untrack();
+    supabase.removeChannel(channel);
+  };
+}, [isAtFire, isAuthenticated, user, eveningEvent, displayName]);
+
+
+// ─── Effect 2: Re-track when book changes ──────────────────────────────────
+useEffect(() => {
+  if (!channelRef.current || !isAtFire || !user) return;
+
+  channelRef.current.track({
+    user_id: user.id,
+    display_name: displayName || user.email?.split("@")[0] || "Reader",
+    book: myBook,
+    online_at: new Date().toISOString(),
+  });
+}, [myBook]);
 
   // ─── Audio setup (looped) ───
   useEffect(() => {
