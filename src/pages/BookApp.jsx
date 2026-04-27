@@ -406,7 +406,7 @@ const BookCover = ({ book, style = {} }) => {
 };
 
 // ─── Account Modal ───
-const AccountModal = ({ user, username, usernameInput, setUsernameInput, usernameError, usernameSaved, saveUsername, showChangePassword, setShowChangePassword, newPassword, setNewPassword, passwordMsg, changePassword, shelves, finishedDates, favGenres, favTropes, onClose, onOpenProfile }) => {
+const AccountModal = ({ user, username, usernameInput, setUsernameInput, usernameError, usernameSaved, saveUsername, showChangePassword, setShowChangePassword, newPassword, setNewPassword, passwordMsg, changePassword, shelves, finishedDates, prefExWarnings, prefExTropes, prefExTags, onClose, onOpenProfile }) => {
   const [tab, setTab] = useState("profile");
   const thisYear = new Date().getFullYear();
   const booksThisYear = Object.entries(finishedDates || {}).filter(([,d]) => new Date(d).getFullYear() === thisYear).length;
@@ -452,13 +452,13 @@ const AccountModal = ({ user, username, usernameInput, setUsernameInput, usernam
                 </div>
               </div>
 
-              {/* Fav genres & tropes preview */}
+              {/* Exclusions preview */}
               <div style={{ marginBottom:"16px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
-                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Favorite Genres & Tropes</div>
-                {favGenres.length > 0 || favTropes.length > 0 ? (
+                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Default Exclusions</div>
+                {prefExWarnings.length > 0 || prefExTropes.length > 0 || prefExTags.length > 0 ? (
                   <div style={{ display:"flex",flexWrap:"wrap",gap:"5px" }}>
-                    {[...favGenres, ...favTropes].slice(0, 8).map(v => <Badge key={v} text={v} color={C.cream} border="1px solid rgba(232,220,203,0.2)" />)}
-                    {(favGenres.length + favTropes.length) > 8 && <span style={{ fontSize:"11px",color:"rgba(232,220,203,0.4)",alignSelf:"center" }}>+{(favGenres.length + favTropes.length) - 8} more</span>}
+                    {[...prefExWarnings, ...prefExTropes, ...prefExTags].slice(0, 8).map(v => <Badge key={v} text={v} color="#C27A3A" border="1px solid rgba(139,58,58,0.35)" />)}
+                    {(prefExWarnings.length + prefExTropes.length + prefExTags.length) > 8 && <span style={{ fontSize:"11px",color:"rgba(232,220,203,0.4)",alignSelf:"center" }}>+{(prefExWarnings.length + prefExTropes.length + prefExTags.length) - 8} more</span>}
                   </div>
                 ) : (
                   <span style={{ color:"rgba(232,220,203,0.35)",fontSize:"12px",fontStyle:"italic" }}>Set these in your full profile →</span>
@@ -531,15 +531,17 @@ const PROFILE_SHELVES = [
   { key: "Lend & Borrow",     emoji: "🤝", color: "#C27A3A" },
 ];
 
-const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, favGenres, favTropes, saveFavPrefs, onClose, onBookClick }) => {
+const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, prefExWarnings, prefExTropes, prefExTags, saveExclusionPrefs, onClose, onBookClick }) => {
   const [loading, setLoading] = useState(!isOwn);
   const [friendShelves, setFriendShelves] = useState({});
-  const [friendGenres, setFriendGenres] = useState([]);
-  const [friendTropes, setFriendTropes] = useState([]);
+  const [friendExWarnings, setFriendExWarnings] = useState([]);
+  const [friendExTropes, setFriendExTropes] = useState([]);
+  const [friendExTags, setFriendExTags] = useState([]);
   const [tbrPick, setTbrPick] = useState(null);
   const [editingPrefs, setEditingPrefs] = useState(false);
-  const [tempGenres, setTempGenres] = useState([]);
+  const [tempWarnings, setTempWarnings] = useState([]);
   const [tempTropes, setTempTropes] = useState([]);
+  const [tempTags, setTempTags] = useState([]);
 
   useEffect(() => {
     if (isOwn || !profileUser?.id) return;
@@ -548,22 +550,22 @@ const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, favGenres
       try {
         const [{ data: shData }, { data: prof }] = await Promise.all([
           supabase.from("user_shelves").select("shelf_name, book_ids").eq("user_id", profileUser.id),
-          supabase.from("profiles").select("fav_genres, fav_tropes").eq("id", profileUser.id).maybeSingle(),
+          supabase.from("profiles").select("pref_ex_warnings, pref_ex_tropes, pref_ex_tags").eq("id", profileUser.id).maybeSingle(),
         ]);
         if (shData) {
           const loaded = {};
           shData.forEach(r => { loaded[r.shelf_name] = r.book_ids || []; });
           setFriendShelves(loaded);
         }
-        if (prof?.fav_genres) try { setFriendGenres(JSON.parse(prof.fav_genres)); } catch {}
-        if (prof?.fav_tropes) try { setFriendTropes(JSON.parse(prof.fav_tropes)); } catch {}
+        if (prof?.pref_ex_warnings) try { setFriendExWarnings(JSON.parse(prof.pref_ex_warnings)); } catch {}
+        if (prof?.pref_ex_tropes) try { setFriendExTropes(JSON.parse(prof.pref_ex_tropes)); } catch {}
+        if (prof?.pref_ex_tags) try { setFriendExTags(JSON.parse(prof.pref_ex_tags)); } catch {}
       } finally { setLoading(false); }
     })();
   }, [isOwn, profileUser?.id]);
 
   const activeShelves = isOwn ? ownShelves : friendShelves;
-  const displayGenres = isOwn ? favGenres : friendGenres;
-  const displayTropes = isOwn ? favTropes : friendTropes;
+  const hasAnyExclusions = prefExWarnings.length > 0 || prefExTropes.length > 0 || prefExTags.length > 0;
   const thisYear = new Date().getFullYear();
   const booksThisYear = isOwn
     ? Object.entries(finishedDates || {}).filter(([, d]) => new Date(d).getFullYear() === thisYear).length
@@ -576,8 +578,8 @@ const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, favGenres
     setTbrPick(book || null);
   };
 
-  const startEdit = () => { setTempGenres([...favGenres]); setTempTropes([...favTropes]); setEditingPrefs(true); };
-  const saveEdit = () => { saveFavPrefs(tempGenres, tempTropes); setEditingPrefs(false); };
+  const startEdit = () => { setTempWarnings([...prefExWarnings]); setTempTropes([...prefExTropes]); setTempTags([...prefExTags]); setEditingPrefs(true); };
+  const saveEdit = () => { saveExclusionPrefs(tempWarnings, tempTropes, tempTags); setEditingPrefs(false); };
 
   const hiddenFromFriends = ["Recommended"];
   const customShelves = Object.keys(activeShelves).filter(k =>
@@ -669,38 +671,49 @@ const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, favGenres
               </div>
             )}
 
-            {/* Favorite Genres */}
-            <div style={{ marginBottom:"18px" }}>
-              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"9px" }}>
-                <div style={{ fontSize:"11px",fontWeight:700,color:"#C27A3A",letterSpacing:"1.2px",textTransform:"uppercase" }}>Favorite Genres</div>
-                {isOwn && !editingPrefs && (
-                  <button onClick={startEdit} style={{ fontSize:"11px",color:"#35605A",background:"none",border:"none",cursor:"pointer",fontWeight:600 }}>Edit ✏️</button>
+            {/* Default Exclusions — own profile only */}
+            {isOwn && (<>
+              <div style={{ marginBottom: editingPrefs ? "14px" : "24px" }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"12px" }}>
+                <div>
+                  <div style={{ fontSize:"11px",fontWeight:700,color:"#8B3A3A",letterSpacing:"1.2px",textTransform:"uppercase" }}>My Default Exclusions</div>
+                  <div style={{ fontSize:"11px",color:"rgba(232,220,203,0.38)",marginTop:"3px" }}>Content you always filter out</div>
+                </div>
+                {!editingPrefs && (
+                  <button onClick={startEdit} style={{ fontSize:"11px",color:"#35605A",background:"none",border:"none",cursor:"pointer",fontWeight:600,flexShrink:0 }}>Edit ✏️</button>
                 )}
               </div>
               {editingPrefs ? (
-                <MultiSelect options={ALL_GENRES} selected={tempGenres} onChange={setTempGenres} placeholder="Select your favorite genres..." />
-              ) : (
-                <div style={{ display:"flex",flexWrap:"wrap",gap:"6px" }}>
-                  {displayGenres.length > 0
-                    ? displayGenres.map(g => <Badge key={g} text={g} color="#fff" bg="#35605A" border="none" />)
-                    : <span style={{ color:"rgba(232,220,203,0.28)",fontSize:"12px",fontStyle:"italic" }}>{isOwn ? "Tap Edit to add your favorite genres" : "Not set yet"}</span>
-                  }
+                <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
+                  <MultiSelect label="Warnings" options={ALL_WARNINGS} selected={tempWarnings} onChange={setTempWarnings} placeholder="Warnings to always exclude..." />
+                  <MultiSelect label="Tropes" options={ALL_TROPES} selected={tempTropes} onChange={setTempTropes} placeholder="Tropes to always exclude..." />
+                  <MultiSelect label="Tags" options={ALL_TAGS} selected={tempTags} onChange={setTempTags} placeholder="Tags to always exclude..." />
                 </div>
-              )}
-            </div>
-
-            {/* Favorite Tropes */}
-            <div style={{ marginBottom: editingPrefs ? "14px" : "24px" }}>
-              <div style={{ fontSize:"11px",fontWeight:700,color:"#C27A3A",letterSpacing:"1.2px",textTransform:"uppercase",marginBottom:"9px" }}>Favorite Tropes</div>
-              {editingPrefs ? (
-                <MultiSelect options={ALL_TROPES} selected={tempTropes} onChange={setTempTropes} placeholder="Select your favorite tropes..." />
-              ) : (
-                <div style={{ display:"flex",flexWrap:"wrap",gap:"6px" }}>
-                  {displayTropes.length > 0
-                    ? displayTropes.map(t => <Badge key={t} text={t} color="#E8DCCB" border="1px solid rgba(232,220,203,0.25)" />)
-                    : <span style={{ color:"rgba(232,220,203,0.28)",fontSize:"12px",fontStyle:"italic" }}>{isOwn ? "Tap Edit to add your favorite tropes" : "Not set yet"}</span>
-                  }
+              ) : hasAnyExclusions ? (
+                <div style={{ display:"flex",flexDirection:"column",gap:"8px" }}>
+                  {prefExWarnings.length > 0 && (
+                    <div>
+                      <div style={{ fontSize:"10px",fontWeight:700,color:"rgba(139,58,58,0.8)",letterSpacing:"1px",textTransform:"uppercase",marginBottom:"5px" }}>Warnings</div>
+                      <div style={{ display:"flex",flexWrap:"wrap",gap:"5px" }}>{prefExWarnings.map(w => <Badge key={w} text={w} color="#C27A3A" border="1px solid rgba(139,58,58,0.4)" />)}</div>
+                    </div>
+                  )}
+                  {prefExTropes.length > 0 && (
+                    <div>
+                      <div style={{ fontSize:"10px",fontWeight:700,color:"rgba(139,58,58,0.8)",letterSpacing:"1px",textTransform:"uppercase",marginBottom:"5px" }}>Tropes</div>
+                      <div style={{ display:"flex",flexWrap:"wrap",gap:"5px" }}>{prefExTropes.map(t => <Badge key={t} text={t} color="#C27A3A" border="1px solid rgba(139,58,58,0.4)" />)}</div>
+                    </div>
+                  )}
+                  {prefExTags.length > 0 && (
+                    <div>
+                      <div style={{ fontSize:"10px",fontWeight:700,color:"rgba(139,58,58,0.8)",letterSpacing:"1px",textTransform:"uppercase",marginBottom:"5px" }}>Tags</div>
+                      <div style={{ display:"flex",flexWrap:"wrap",gap:"5px" }}>{prefExTags.map(t => <Badge key={t} text={t} color="#C27A3A" border="1px solid rgba(139,58,58,0.4)" />)}</div>
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <span style={{ color:"rgba(232,220,203,0.28)",fontSize:"12px",fontStyle:"italic" }}>
+                  Tap Edit to set content you always filter out
+                </span>
               )}
             </div>
 
@@ -711,6 +724,7 @@ const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, favGenres
                 <button onClick={() => setEditingPrefs(false)} style={{ padding:"9px 18px",background:"rgba(232,220,203,0.05)",border:"1px solid rgba(232,220,203,0.15)",borderRadius:"8px",color:"#E8DCCB",fontSize:"12px",fontWeight:600,cursor:"pointer" }}>Cancel</button>
               </div>
             )}
+            </>)}
 
             {/* Coming Soon */}
             <div style={{ padding:"16px 18px",background:"rgba(53,96,90,0.06)",borderRadius:"14px",border:"1px solid rgba(53,96,90,0.14)" }}>
@@ -993,8 +1007,10 @@ export default function BookApp() {
 
   // Profile features
   const [finishedDates, setFinishedDates] = useState({});
-  const [favGenres, setFavGenres] = useState([]);
-  const [favTropes, setFavTropes] = useState([]);
+  // Profile exclusion preferences
+  const [prefExWarnings, setPrefExWarnings] = useState([]);
+  const [prefExTropes, setPrefExTropes] = useState([]);
+  const [prefExTags, setPrefExTags] = useState([]);
   const [showProfile, setShowProfile] = useState(null); // null | "own" | {id, username, display_name}
 
   // Helper: check if user is authenticated, if not show guest prompt
@@ -1055,12 +1071,16 @@ export default function BookApp() {
     if (!isAuthenticated) return;
     const loadSocial = async () => {
       // Load username + fav prefs
-      const { data: profile } = await supabase.from("profiles").select("username, fav_genres, fav_tropes").eq("id", user.id).maybeSingle();
+      const { data: profile } = await supabase.from("profiles").select("username, pref_ex_warnings, pref_ex_tropes, pref_ex_tags").eq("id", user.id).maybeSingle();
       if (profile?.username) { setUsername(profile.username); setUsernameInput(profile.username); }
-      if (profile?.fav_genres) try { setFavGenres(JSON.parse(profile.fav_genres)); } catch {}
-      else { try { const s = localStorage.getItem(`rr_prefs_${user.id}`); if (s) { const p = JSON.parse(s); if (p.favGenres) setFavGenres(p.favGenres); } } catch {} }
-      if (profile?.fav_tropes) try { setFavTropes(JSON.parse(profile.fav_tropes)); } catch {}
-      else { try { const s = localStorage.getItem(`rr_prefs_${user.id}`); if (s) { const p = JSON.parse(s); if (p.favTropes) setFavTropes(p.favTropes); } } catch {} }
+      const stored = localStorage.getItem(`rr_exclusions_${user.id}`);
+      const localPrefs = stored ? (() => { try { return JSON.parse(stored); } catch { return {}; } })() : {};
+      if (profile?.pref_ex_warnings) try { setPrefExWarnings(JSON.parse(profile.pref_ex_warnings)); } catch {}
+      else if (localPrefs.warnings) setPrefExWarnings(localPrefs.warnings);
+      if (profile?.pref_ex_tropes) try { setPrefExTropes(JSON.parse(profile.pref_ex_tropes)); } catch {}
+      else if (localPrefs.tropes) setPrefExTropes(localPrefs.tropes);
+      if (profile?.pref_ex_tags) try { setPrefExTags(JSON.parse(profile.pref_ex_tags)); } catch {}
+      else if (localPrefs.tags) setPrefExTags(localPrefs.tags);
       setProfileLoaded(true);
       // Friends
       const { data: f } = await supabase.from("friendships")
@@ -1138,14 +1158,14 @@ export default function BookApp() {
     catch { alert("Link: " + window.location.origin); }
   };
 
-  const saveFavPrefs = async (genres, tropes) => {
-    setFavGenres(genres);
-    setFavTropes(tropes);
-    // Save to localStorage as fallback
-    localStorage.setItem(`rr_prefs_${user?.id}`, JSON.stringify({ favGenres: genres, favTropes: tropes }));
-    // Try to persist to Supabase (requires fav_genres, fav_tropes text columns in profiles table)
+  const saveExclusionPrefs = async (warnings, tropes, tags) => {
+    setPrefExWarnings(warnings);
+    setPrefExTropes(tropes);
+    setPrefExTags(tags);
+    localStorage.setItem(`rr_exclusions_${user?.id}`, JSON.stringify({ warnings, tropes, tags }));
+    // Requires pref_ex_warnings, pref_ex_tropes, pref_ex_tags text columns in profiles table
     if (isAuthenticated) {
-      try { await supabase.from("profiles").update({ fav_genres: JSON.stringify(genres), fav_tropes: JSON.stringify(tropes) }).eq("id", user.id); } catch {}
+      try { await supabase.from("profiles").update({ pref_ex_warnings: JSON.stringify(warnings), pref_ex_tropes: JSON.stringify(tropes), pref_ex_tags: JSON.stringify(tags) }).eq("id", user.id); } catch {}
     }
   };
 
@@ -1465,9 +1485,10 @@ export default function BookApp() {
           profileUser={showProfile === "own" ? { id: user.id, username } : showProfile}
           ownShelves={shelves}
           finishedDates={finishedDates}
-          favGenres={favGenres}
-          favTropes={favTropes}
-          saveFavPrefs={saveFavPrefs}
+          prefExWarnings={prefExWarnings}
+          prefExTropes={prefExTropes}
+          prefExTags={prefExTags}
+          saveExclusionPrefs={saveExclusionPrefs}
           onClose={() => setShowProfile(null)}
           onBookClick={(book) => { setShowProfile(null); setSelectedBook(book); }}
         />
@@ -1480,7 +1501,7 @@ export default function BookApp() {
           usernameError={usernameError} usernameSaved={usernameSaved} saveUsername={saveUsername}
           showChangePassword={showChangePassword} setShowChangePassword={setShowChangePassword}
           newPassword={newPassword} setNewPassword={setNewPassword} passwordMsg={passwordMsg} changePassword={changePassword}
-          shelves={shelves} finishedDates={finishedDates} favGenres={favGenres} favTropes={favTropes}
+          shelves={shelves} finishedDates={finishedDates} prefExWarnings={prefExWarnings} prefExTropes={prefExTropes} prefExTags={prefExTags}
           onClose={() => setShowAccount(false)} onOpenProfile={() => { setShowAccount(false); setShowProfile("own"); }}
         />
       )}
