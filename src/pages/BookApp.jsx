@@ -405,6 +405,332 @@ const BookCover = ({ book, style = {} }) => {
   );
 };
 
+// ─── Account Modal ───
+const AccountModal = ({ user, username, usernameInput, setUsernameInput, usernameError, usernameSaved, saveUsername, showChangePassword, setShowChangePassword, newPassword, setNewPassword, passwordMsg, changePassword, shelves, finishedDates, favGenres, favTropes, onClose, onOpenProfile }) => {
+  const [tab, setTab] = useState("profile");
+  const thisYear = new Date().getFullYear();
+  const booksThisYear = Object.entries(finishedDates || {}).filter(([,d]) => new Date(d).getFullYear() === thisYear).length;
+
+  return (
+    <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"linear-gradient(160deg,#2B1E2F,#1a1220)",borderRadius:"20px",maxWidth:"480px",width:"100%",maxHeight:"88vh",overflowY:"auto",border:"1px solid rgba(194,122,58,0.3)" }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"24px 28px 0" }}>
+          <h2 style={{ fontFamily:"'Playfair Display',serif",color:C.cream,margin:0,fontSize:"21px" }}>My Account</h2>
+          <button onClick={onClose} style={{ background:"none",border:"none",color:C.cream,fontSize:"20px",cursor:"pointer" }}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:"flex",gap:"6px",padding:"16px 28px 0" }}>
+          {[["profile","👤 My Profile"],["settings","⚙️ Settings"]].map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)} style={{ padding:"7px 18px",background:tab===t?C.copper:"rgba(232,220,203,0.06)",border:`1px solid ${tab===t?C.copper:"rgba(232,220,203,0.12)"}`,borderRadius:"8px",color:tab===t?"#fff":C.cream,fontSize:"12px",fontWeight:700,cursor:"pointer" }}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ padding:"20px 28px 28px" }}>
+          {tab === "profile" && (
+            <div>
+              {/* Quick profile card */}
+              <div style={{ padding:"14px",background:"rgba(194,122,58,0.06)",borderRadius:"12px",border:"1px solid rgba(194,122,58,0.15)",marginBottom:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:"12px",flexWrap:"wrap" }}>
+                <div>
+                  <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"4px" }}>Your Profile</div>
+                  <div style={{ color:C.cream,fontSize:"14px",fontWeight:600 }}>{username ? `@${username}` : "No username set"}</div>
+                  <div style={{ color:"rgba(232,220,203,0.4)",fontSize:"11px",marginTop:"2px" }}>{booksThisYear} books read in {thisYear}</div>
+                </div>
+                <button onClick={onOpenProfile} style={{ padding:"8px 16px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>View Full Profile</button>
+              </div>
+
+              {/* Shelf overview grid */}
+              <div style={{ marginBottom:"16px" }}>
+                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"10px" }}>Shelf Overview</div>
+                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px" }}>
+                  {PROFILE_SHELVES.map(({ key, emoji, color }) => (
+                    <div key={key} style={{ padding:"8px 12px",background:"rgba(232,220,203,0.03)",borderRadius:"8px",border:"1px solid rgba(232,220,203,0.06)",display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                      <span style={{ fontSize:"11px",color,fontWeight:600 }}>{emoji} {key === "Desert Island 5" ? "Island 5" : key === "Lend & Borrow" ? "Lend/Borrow" : key}</span>
+                      <span style={{ fontSize:"12px",color:"rgba(232,220,203,0.5)",fontWeight:700 }}>{(shelves[key]||[]).length}{key==="Desert Island 5"?"/5":""}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fav genres & tropes preview */}
+              <div style={{ marginBottom:"16px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Favorite Genres & Tropes</div>
+                {favGenres.length > 0 || favTropes.length > 0 ? (
+                  <div style={{ display:"flex",flexWrap:"wrap",gap:"5px" }}>
+                    {[...favGenres, ...favTropes].slice(0, 8).map(v => <Badge key={v} text={v} color={C.cream} border="1px solid rgba(232,220,203,0.2)" />)}
+                    {(favGenres.length + favTropes.length) > 8 && <span style={{ fontSize:"11px",color:"rgba(232,220,203,0.4)",alignSelf:"center" }}>+{(favGenres.length + favTropes.length) - 8} more</span>}
+                  </div>
+                ) : (
+                  <span style={{ color:"rgba(232,220,203,0.35)",fontSize:"12px",fontStyle:"italic" }}>Set these in your full profile →</span>
+                )}
+              </div>
+              <button onClick={onOpenProfile} style={{ width:"100%",padding:"11px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"10px",color:"#fff",fontSize:"13px",fontWeight:700,cursor:"pointer" }}>Open My Full Profile</button>
+            </div>
+          )}
+
+          {tab === "settings" && (
+            <div>
+              <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"6px" }}>Email</div>
+                <div style={{ color:C.cream,fontSize:"14px" }}>{user?.email}</div>
+              </div>
+              <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Username</div>
+                <div style={{ display:"flex",gap:"8px" }}>
+                  <input type="text" placeholder="Choose a username..." value={usernameInput} onChange={e=>setUsernameInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveUsername()}
+                    style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
+                  <button onClick={saveUsername} style={{ padding:"10px 16px",background:usernameSaved?C.teal:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",minWidth:"70px" }}>
+                    {usernameSaved ? "✓ Saved" : "Save"}
+                  </button>
+                </div>
+                {usernameError && <div style={{ color:"#C27A3A",fontSize:"12px",marginTop:"6px" }}>{usernameError}</div>}
+                <div style={{ color:"rgba(232,220,203,0.35)",fontSize:"11px",marginTop:"6px" }}>Friends find you by this username. Lowercase letters, numbers, and underscores only.</div>
+              </div>
+              <div style={{ padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
+                <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Change Password</div>
+                {!showChangePassword ? (
+                  <button onClick={()=>setShowChangePassword(true)} style={{ padding:"8px 16px",background:"rgba(232,220,203,0.06)",border:"1px solid rgba(232,220,203,0.15)",borderRadius:"8px",color:C.cream,fontSize:"12px",fontWeight:600,cursor:"pointer" }}>Change Password</button>
+                ) : (
+                  <div style={{ display:"flex",gap:"8px" }}>
+                    <input type="password" placeholder="New password (min 6 chars)..." value={newPassword} onChange={e=>setNewPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&changePassword()}
+                      style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
+                    <button onClick={changePassword} style={{ padding:"10px 16px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer" }}>Update</button>
+                  </div>
+                )}
+                {passwordMsg && <div style={{ color:passwordMsg.includes("updated")?C.teal:C.copper,fontSize:"12px",marginTop:"6px" }}>{passwordMsg}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Profile Modal ───
+const PROFILE_COMING_SOON = [
+  { emoji: "🧠", label: "Reading Personality Type" },
+  { emoji: "✍️", label: "Favorite Authors" },
+  { emoji: "⭐", label: "Reviews & Ratings" },
+  { emoji: "💬", label: "Quotes & Highlights" },
+  { emoji: "🔥", label: "Total Campfire Hours" },
+  { emoji: "🪵", label: "Sessions Attended" },
+  { emoji: "🏅", label: "Badges & Milestones" },
+  { emoji: "📅", label: "Reading Anniversary" },
+  { emoji: "🔁", label: "Most Re-read Book" },
+  { emoji: "🌳", label: "Bookshelf of My Childhood" },
+];
+
+const PROFILE_SHELVES = [
+  { key: "Currently Reading", emoji: "📖", color: "#35605A" },
+  { key: "Want to Read",      emoji: "🎯", color: "#C27A3A" },
+  { key: "Finished",          emoji: "✅", color: "#5BA85B" },
+  { key: "Desert Island 5",   emoji: "🏝️", color: "#C27A3A" },
+  { key: "DNF",               emoji: "🚫", color: "#8B3A3A" },
+  { key: "Re-read",           emoji: "🔁", color: "#35605A" },
+  { key: "Lend & Borrow",     emoji: "🤝", color: "#C27A3A" },
+];
+
+const ProfileModal = ({ isOwn, profileUser, ownShelves, finishedDates, favGenres, favTropes, saveFavPrefs, onClose, onBookClick }) => {
+  const [loading, setLoading] = useState(!isOwn);
+  const [friendShelves, setFriendShelves] = useState({});
+  const [friendGenres, setFriendGenres] = useState([]);
+  const [friendTropes, setFriendTropes] = useState([]);
+  const [tbrPick, setTbrPick] = useState(null);
+  const [editingPrefs, setEditingPrefs] = useState(false);
+  const [tempGenres, setTempGenres] = useState([]);
+  const [tempTropes, setTempTropes] = useState([]);
+
+  useEffect(() => {
+    if (isOwn || !profileUser?.id) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const [{ data: shData }, { data: prof }] = await Promise.all([
+          supabase.from("user_shelves").select("shelf_name, book_ids").eq("user_id", profileUser.id),
+          supabase.from("profiles").select("fav_genres, fav_tropes").eq("id", profileUser.id).maybeSingle(),
+        ]);
+        if (shData) {
+          const loaded = {};
+          shData.forEach(r => { loaded[r.shelf_name] = r.book_ids || []; });
+          setFriendShelves(loaded);
+        }
+        if (prof?.fav_genres) try { setFriendGenres(JSON.parse(prof.fav_genres)); } catch {}
+        if (prof?.fav_tropes) try { setFriendTropes(JSON.parse(prof.fav_tropes)); } catch {}
+      } finally { setLoading(false); }
+    })();
+  }, [isOwn, profileUser?.id]);
+
+  const activeShelves = isOwn ? ownShelves : friendShelves;
+  const displayGenres = isOwn ? favGenres : friendGenres;
+  const displayTropes = isOwn ? favTropes : friendTropes;
+  const thisYear = new Date().getFullYear();
+  const booksThisYear = isOwn
+    ? Object.entries(finishedDates || {}).filter(([, d]) => new Date(d).getFullYear() === thisYear).length
+    : null;
+
+  const pickFromTBR = () => {
+    const tbr = (activeShelves["Want to Read"] || []);
+    if (!tbr.length) { alert("TBR shelf is empty!"); return; }
+    const book = BOOKS_DB.find(b => b.id === tbr[Math.floor(Math.random() * tbr.length)]);
+    setTbrPick(book || null);
+  };
+
+  const startEdit = () => { setTempGenres([...favGenres]); setTempTropes([...favTropes]); setEditingPrefs(true); };
+  const saveEdit = () => { saveFavPrefs(tempGenres, tempTropes); setEditingPrefs(false); };
+
+  const hiddenFromFriends = ["Recommended"];
+  const customShelves = Object.keys(activeShelves).filter(k =>
+    !PROFILE_SHELVES.map(s => s.key).includes(k) && !hiddenFromFriends.includes(k)
+  );
+
+  return (
+    <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.78)",backdropFilter:"blur(8px)",zIndex:2500,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",overflowY:"auto" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background:"linear-gradient(160deg,#2B1E2F 0%,#1a1220 100%)",borderRadius:"20px",maxWidth:"620px",width:"100%",maxHeight:"90vh",overflowY:"auto",border:"1px solid rgba(194,122,58,0.25)",boxShadow:"0 24px 80px rgba(0,0,0,0.7)" }}>
+
+        {/* Header */}
+        <div style={{ background:"linear-gradient(135deg,rgba(74,44,35,0.55),rgba(43,30,47,0.55))",padding:"26px 28px 20px",borderBottom:"1px solid rgba(194,122,58,0.15)",position:"relative" }}>
+          <button onClick={onClose} style={{ position:"absolute",top:"14px",right:"16px",background:"none",border:"none",color:"rgba(232,220,203,0.6)",fontSize:"20px",cursor:"pointer" }}>✕</button>
+          <div style={{ display:"flex",alignItems:"center",gap:"16px" }}>
+            <div style={{ width:"54px",height:"54px",borderRadius:"50%",background:`linear-gradient(135deg,#C27A3A,#A86830)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"22px",flexShrink:0,boxShadow:"0 4px 14px rgba(194,122,58,0.3)" }}>📖</div>
+            <div>
+              <div style={{ fontFamily:"'Playfair Display',serif",color:"#E8DCCB",fontSize:"20px",fontWeight:700 }}>
+                {profileUser?.username ? `@${profileUser.username}` : profileUser?.display_name || "Reader"}
+              </div>
+              {isOwn && booksThisYear !== null && (
+                <div style={{ marginTop:"5px",display:"flex",alignItems:"center",gap:"8px" }}>
+                  <span style={{ fontSize:"22px",fontWeight:800,color:"#C27A3A",fontFamily:"'Playfair Display',serif" }}>{booksThisYear}</span>
+                  <span style={{ color:"rgba(232,220,203,0.55)",fontSize:"12px" }}>books read in {thisYear}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div style={{ padding:"60px 20px",textAlign:"center",color:"rgba(232,220,203,0.4)",fontSize:"14px" }}>Loading profile...</div>
+        ) : (
+          <div style={{ padding:"24px 28px" }}>
+
+            {/* Shelves & Collections */}
+            <div style={{ marginBottom:"24px" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:"#C27A3A",letterSpacing:"1.2px",textTransform:"uppercase",marginBottom:"12px" }}>Shelves & Collections</div>
+              <div style={{ display:"flex",flexDirection:"column",gap:"7px" }}>
+                {PROFILE_SHELVES.map(({ key, emoji, color }) => {
+                  const ids = activeShelves[key] || [];
+                  const count = ids.length;
+                  const preview = ids.slice(0, 3).map(id => BOOKS_DB.find(b => b.id === id)).filter(Boolean);
+                  return (
+                    <div key={key} style={{ padding:"10px 14px",background:"rgba(232,220,203,0.03)",borderRadius:"10px",border:`1px solid ${count ? "rgba(194,122,58,0.1)" : "rgba(232,220,203,0.05)"}` }}>
+                      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                        <span style={{ fontSize:"13px",color,fontWeight:600 }}>{emoji} {key}</span>
+                        <span style={{ fontSize:"12px",color:"rgba(232,220,203,0.45)",fontWeight:600 }}>
+                          {key === "Desert Island 5" ? `${count}/5${count >= 5 ? " 🌴" : ""}` : count}
+                        </span>
+                      </div>
+                      {preview.length > 0 && (
+                        <div style={{ marginTop:"5px",fontSize:"11px",color:"rgba(232,220,203,0.38)",lineHeight:1.4 }}>
+                          {preview.map(b => b.title).join(" · ")}{count > 3 ? ` +${count - 3} more` : ""}
+                        </div>
+                      )}
+                      {key === "Want to Read" && isOwn && (
+                        <button onClick={pickFromTBR} style={{ marginTop:"8px",padding:"5px 12px",background:"rgba(194,122,58,0.12)",border:"1px solid rgba(194,122,58,0.35)",borderRadius:"6px",color:"#C27A3A",fontSize:"11px",fontWeight:700,cursor:"pointer" }}>
+                          🎲 TBR Jar — Pick One for Me!
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {customShelves.map(key => (
+                  <div key={key} style={{ padding:"10px 14px",background:"rgba(232,220,203,0.03)",borderRadius:"10px",border:"1px solid rgba(232,220,203,0.05)" }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                      <span style={{ fontSize:"13px",color:"#E8DCCB",fontWeight:600 }}>📂 {key}</span>
+                      <span style={{ fontSize:"12px",color:"rgba(232,220,203,0.45)",fontWeight:600 }}>{(activeShelves[key] || []).length}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* TBR Jar Pick Result */}
+            {tbrPick && (
+              <div style={{ marginBottom:"22px",padding:"14px 16px",background:"rgba(194,122,58,0.07)",border:"1px solid rgba(194,122,58,0.3)",borderRadius:"12px" }}>
+                <div style={{ fontSize:"10px",fontWeight:700,color:"#C27A3A",letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>🎲 The Jar Picked...</div>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:"12px",flexWrap:"wrap" }}>
+                  <div>
+                    <div style={{ color:"#E8DCCB",fontSize:"15px",fontWeight:700 }}>{tbrPick.title}</div>
+                    <div style={{ color:"rgba(232,220,203,0.55)",fontSize:"12px",marginTop:"2px" }}>by {tbrPick.author}</div>
+                  </div>
+                  <div style={{ display:"flex",gap:"7px",flexShrink:0 }}>
+                    <button onClick={() => { onBookClick(tbrPick); onClose(); }} style={{ padding:"6px 13px",background:"rgba(53,96,90,0.25)",border:"1px solid #35605A",borderRadius:"6px",color:"#35605A",fontSize:"11px",fontWeight:700,cursor:"pointer" }}>View</button>
+                    <button onClick={pickFromTBR} style={{ padding:"6px 13px",background:"rgba(194,122,58,0.15)",border:"1px solid rgba(194,122,58,0.4)",borderRadius:"6px",color:"#C27A3A",fontSize:"11px",fontWeight:700,cursor:"pointer" }}>Repick 🎲</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Favorite Genres */}
+            <div style={{ marginBottom:"18px" }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"9px" }}>
+                <div style={{ fontSize:"11px",fontWeight:700,color:"#C27A3A",letterSpacing:"1.2px",textTransform:"uppercase" }}>Favorite Genres</div>
+                {isOwn && !editingPrefs && (
+                  <button onClick={startEdit} style={{ fontSize:"11px",color:"#35605A",background:"none",border:"none",cursor:"pointer",fontWeight:600 }}>Edit ✏️</button>
+                )}
+              </div>
+              {editingPrefs ? (
+                <MultiSelect options={ALL_GENRES} selected={tempGenres} onChange={setTempGenres} placeholder="Select your favorite genres..." />
+              ) : (
+                <div style={{ display:"flex",flexWrap:"wrap",gap:"6px" }}>
+                  {displayGenres.length > 0
+                    ? displayGenres.map(g => <Badge key={g} text={g} color="#fff" bg="#35605A" border="none" />)
+                    : <span style={{ color:"rgba(232,220,203,0.28)",fontSize:"12px",fontStyle:"italic" }}>{isOwn ? "Tap Edit to add your favorite genres" : "Not set yet"}</span>
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Favorite Tropes */}
+            <div style={{ marginBottom: editingPrefs ? "14px" : "24px" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:"#C27A3A",letterSpacing:"1.2px",textTransform:"uppercase",marginBottom:"9px" }}>Favorite Tropes</div>
+              {editingPrefs ? (
+                <MultiSelect options={ALL_TROPES} selected={tempTropes} onChange={setTempTropes} placeholder="Select your favorite tropes..." />
+              ) : (
+                <div style={{ display:"flex",flexWrap:"wrap",gap:"6px" }}>
+                  {displayTropes.length > 0
+                    ? displayTropes.map(t => <Badge key={t} text={t} color="#E8DCCB" border="1px solid rgba(232,220,203,0.25)" />)
+                    : <span style={{ color:"rgba(232,220,203,0.28)",fontSize:"12px",fontStyle:"italic" }}>{isOwn ? "Tap Edit to add your favorite tropes" : "Not set yet"}</span>
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Edit Save/Cancel */}
+            {editingPrefs && (
+              <div style={{ display:"flex",gap:"8px",marginBottom:"24px" }}>
+                <button onClick={saveEdit} style={{ padding:"9px 22px",background:"linear-gradient(135deg,#C27A3A,#A86830)",border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer" }}>Save</button>
+                <button onClick={() => setEditingPrefs(false)} style={{ padding:"9px 18px",background:"rgba(232,220,203,0.05)",border:"1px solid rgba(232,220,203,0.15)",borderRadius:"8px",color:"#E8DCCB",fontSize:"12px",fontWeight:600,cursor:"pointer" }}>Cancel</button>
+              </div>
+            )}
+
+            {/* Coming Soon */}
+            <div style={{ padding:"16px 18px",background:"rgba(53,96,90,0.06)",borderRadius:"14px",border:"1px solid rgba(53,96,90,0.14)" }}>
+              <div style={{ fontSize:"11px",fontWeight:700,color:"#35605A",letterSpacing:"1.2px",textTransform:"uppercase",marginBottom:"12px" }}>🚀 Coming Soon to Profiles</div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"5px" }}>
+                {PROFILE_COMING_SOON.map(({ emoji, label }) => (
+                  <div key={label} style={{ display:"flex",alignItems:"center",gap:"7px",padding:"6px 9px",background:"rgba(232,220,203,0.02)",borderRadius:"7px" }}>
+                    <span style={{ fontSize:"13px" }}>{emoji}</span>
+                    <span style={{ fontSize:"11px",color:"rgba(232,220,203,0.38)" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Filters Sidebar Content ───
 const FiltersContent = ({
   isMobile = false, setShowMobileFilters, clearAllFilters, trackFilter,
@@ -614,8 +940,8 @@ export default function BookApp() {
     return () => window.removeEventListener("beforeunload", trackExit);
   }, []);
 
-  const PROTECTED_SHELVES = ["Currently Reading", "Finished", "Recommended"];
-  const DEFAULT_SHELVES = { "Want to Read":[], "Currently Reading":[], "Finished":[], "Recommended":[], "Kid #1 Reading List":[], "Books to Buy My Best Friend":[] };
+  const PROTECTED_SHELVES = ["Currently Reading", "Finished", "Recommended", "Want to Read", "Desert Island 5", "DNF", "Re-read", "Lend & Borrow"];
+  const DEFAULT_SHELVES = { "Want to Read":[], "Currently Reading":[], "Finished":[], "Recommended":[], "Desert Island 5":[], "DNF":[], "Re-read":[], "Lend & Borrow":[], "Kid #1 Reading List":[], "Books to Buy My Best Friend":[] };
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("Popular");
@@ -665,6 +991,12 @@ export default function BookApp() {
   // Invite link copied
   const [inviteCopied, setInviteCopied] = useState(false);
 
+  // Profile features
+  const [finishedDates, setFinishedDates] = useState({});
+  const [favGenres, setFavGenres] = useState([]);
+  const [favTropes, setFavTropes] = useState([]);
+  const [showProfile, setShowProfile] = useState(null); // null | "own" | {id, username, display_name}
+
   // Helper: check if user is authenticated, if not show guest prompt
   const requireAuth = (message) => {
     if (!isAuthenticated) { setGuestPrompt(message); return false; }
@@ -703,13 +1035,32 @@ export default function BookApp() {
     saveShelves();
   }, [shelves, user, isAuthenticated, shelvesLoaded]);
 
+  // Load finished dates from localStorage
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const stored = localStorage.getItem(`rr_finished_${user.id}`);
+      if (stored) setFinishedDates(JSON.parse(stored));
+    } catch {}
+  }, [user]);
+
+  // Save finished dates to localStorage
+  useEffect(() => {
+    if (!user || !Object.keys(finishedDates).length) return;
+    localStorage.setItem(`rr_finished_${user.id}`, JSON.stringify(finishedDates));
+  }, [finishedDates, user]);
+
   // Load friends & recommendations + username
   useEffect(() => {
     if (!isAuthenticated) return;
     const loadSocial = async () => {
-      // Load username
-      const { data: profile } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
+      // Load username + fav prefs
+      const { data: profile } = await supabase.from("profiles").select("username, fav_genres, fav_tropes").eq("id", user.id).maybeSingle();
       if (profile?.username) { setUsername(profile.username); setUsernameInput(profile.username); }
+      if (profile?.fav_genres) try { setFavGenres(JSON.parse(profile.fav_genres)); } catch {}
+      else { try { const s = localStorage.getItem(`rr_prefs_${user.id}`); if (s) { const p = JSON.parse(s); if (p.favGenres) setFavGenres(p.favGenres); } } catch {} }
+      if (profile?.fav_tropes) try { setFavTropes(JSON.parse(profile.fav_tropes)); } catch {}
+      else { try { const s = localStorage.getItem(`rr_prefs_${user.id}`); if (s) { const p = JSON.parse(s); if (p.favTropes) setFavTropes(p.favTropes); } } catch {} }
       setProfileLoaded(true);
       // Friends
       const { data: f } = await supabase.from("friendships")
@@ -785,6 +1136,17 @@ export default function BookApp() {
   const copyInviteLink = async () => {
     try { await navigator.clipboard.writeText(window.location.origin); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }
     catch { alert("Link: " + window.location.origin); }
+  };
+
+  const saveFavPrefs = async (genres, tropes) => {
+    setFavGenres(genres);
+    setFavTropes(tropes);
+    // Save to localStorage as fallback
+    localStorage.setItem(`rr_prefs_${user?.id}`, JSON.stringify({ favGenres: genres, favTropes: tropes }));
+    // Try to persist to Supabase (requires fav_genres, fav_tropes text columns in profiles table)
+    if (isAuthenticated) {
+      try { await supabase.from("profiles").update({ fav_genres: JSON.stringify(genres), fav_tropes: JSON.stringify(tropes) }).eq("id", user.id); } catch {}
+    }
   };
 
   const sendFriendRequest = async () => {
@@ -877,12 +1239,21 @@ export default function BookApp() {
   };
 
   const addToShelf = (bookId, shelfName) => {
+    if (shelfName === "Desert Island 5") {
+      const current = shelves["Desert Island 5"] || [];
+      if (current.length >= 5 && !current.includes(bookId)) {
+        alert("Your Desert Island 5 is full! Remove a book first to swap it out."); return;
+      }
+    }
     setShelves(prev => {
       const u = { ...prev };
       Object.keys(u).forEach(k => { u[k] = u[k].filter(id => id !== bookId); });
-      u[shelfName] = [...u[shelfName], bookId];
+      u[shelfName] = [...(u[shelfName] || []), bookId];
       return u;
     });
+    if (shelfName === "Finished") {
+      setFinishedDates(prev => ({ ...prev, [bookId]: new Date().toISOString() }));
+    }
     setShowShelfPicker(null);
   };
 
@@ -1027,7 +1398,7 @@ export default function BookApp() {
                 return (
                   <div key={f.id} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"rgba(232,220,203,0.03)",borderRadius:"8px",marginBottom:"6px",border:"1px solid rgba(232,220,203,0.06)" }}>
                     <span style={{ color:C.cream,fontSize:"13px" }}>👤 {friend?.username ? `@${friend.username}` : friend?.display_name || friend?.email?.split("@")[0]}</span>
-                    <span style={{ color:"rgba(232,220,203,0.4)",fontSize:"11px" }}>Friends</span>
+                    <button onClick={() => { setShowFriends(false); setShowProfile(friend); }} style={{ padding:"5px 13px",background:"rgba(194,122,58,0.12)",border:"1px solid rgba(194,122,58,0.3)",borderRadius:"6px",color:C.copper,fontSize:"11px",fontWeight:700,cursor:"pointer" }}>View Profile</button>
                   </div>
                 );
               })}
@@ -1087,58 +1458,31 @@ export default function BookApp() {
 
       {selectedBook && <BookDetailModal book={selectedBook} onClose={() => { setSelectedBook(null); setShowShelfPicker(null); }} getBookShelf={getBookShelf} requireAuth={requireAuth} showShelfPicker={showShelfPicker} setShowShelfPicker={setShowShelfPicker} shelves={shelves} addToShelf={addToShelf} isAuthenticated={isAuthenticated} friends={friends} showRecPanel={showRecPanel} setShowRecPanel={setShowRecPanel} user={user} recommendBook={recommendBook} getBookRecs={getBookRecs} />}
 
+      {/* Profile Modal — own or friend */}
+      {showProfile && isAuthenticated && (
+        <ProfileModal
+          isOwn={showProfile === "own"}
+          profileUser={showProfile === "own" ? { id: user.id, username } : showProfile}
+          ownShelves={shelves}
+          finishedDates={finishedDates}
+          favGenres={favGenres}
+          favTropes={favTropes}
+          saveFavPrefs={saveFavPrefs}
+          onClose={() => setShowProfile(null)}
+          onBookClick={(book) => { setShowProfile(null); setSelectedBook(book); }}
+        />
+      )}
+
       {/* Account Modal */}
       {showAccount && isAuthenticated && (
-        <div onClick={() => setShowAccount(false)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(6px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:"linear-gradient(160deg,#2B1E2F,#1a1220)",borderRadius:"20px",maxWidth:"460px",width:"100%",maxHeight:"85vh",overflowY:"auto",padding:"32px",border:"1px solid rgba(194,122,58,0.3)" }}>
-            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"24px" }}>
-              <h2 style={{ fontFamily:"'Playfair Display',serif",color:C.cream,margin:0,fontSize:"22px" }}>My Account</h2>
-              <button onClick={()=>setShowAccount(false)} style={{ background:"none",border:"none",color:C.cream,fontSize:"20px",cursor:"pointer" }}>✕</button>
-            </div>
-
-            {/* Email */}
-            <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
-              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"6px" }}>Email</div>
-              <div style={{ color:C.cream,fontSize:"14px" }}>{user?.email}</div>
-            </div>
-
-            {/* Username */}
-            <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
-              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Username</div>
-              <div style={{ display:"flex",gap:"8px" }}>
-                <input type="text" placeholder="Choose a username..." value={usernameInput} onChange={e=>setUsernameInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveUsername()}
-                  style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
-                <button onClick={saveUsername} style={{ padding:"10px 16px",background:usernameSaved?C.teal:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",minWidth:"70px" }}>
-                  {usernameSaved ? "✓ Saved" : "Save"}
-                </button>
-              </div>
-              {usernameError && <div style={{ color:"#C27A3A",fontSize:"12px",marginTop:"6px" }}>{usernameError}</div>}
-              <div style={{ color:"rgba(232,220,203,0.35)",fontSize:"11px",marginTop:"6px" }}>Friends will find you by this username. Lowercase letters, numbers, and underscores only.</div>
-            </div>
-
-            {/* Change Password */}
-            <div style={{ marginBottom:"20px",padding:"14px",background:"rgba(232,220,203,0.03)",borderRadius:"12px",border:"1px solid rgba(232,220,203,0.08)" }}>
-              <div style={{ fontSize:"11px",fontWeight:700,color:C.copper,letterSpacing:"1px",textTransform:"uppercase",marginBottom:"8px" }}>Change Password</div>
-              {!showChangePassword ? (
-                <button onClick={()=>setShowChangePassword(true)} style={{ padding:"8px 16px",background:"rgba(232,220,203,0.06)",border:"1px solid rgba(232,220,203,0.15)",borderRadius:"8px",color:C.cream,fontSize:"12px",fontWeight:600,cursor:"pointer" }}>Change Password</button>
-              ) : (
-                <div style={{ display:"flex",gap:"8px" }}>
-                  <input type="password" placeholder="New password (min 6 chars)..." value={newPassword} onChange={e=>setNewPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&changePassword()}
-                    style={{ flex:1,padding:"10px 14px",background:"rgba(43,30,47,0.6)",border:"1px solid rgba(194,122,58,0.25)",borderRadius:"8px",color:C.cream,fontSize:"13px" }} />
-                  <button onClick={changePassword} style={{ padding:"10px 16px",background:`linear-gradient(135deg,${C.copper},#A86830)`,border:"none",borderRadius:"8px",color:"#fff",fontSize:"12px",fontWeight:700,cursor:"pointer" }}>Update</button>
-                </div>
-              )}
-              {passwordMsg && <div style={{ color:passwordMsg.includes("updated")?C.teal:C.copper,fontSize:"12px",marginTop:"6px" }}>{passwordMsg}</div>}
-            </div>
-
-            {/* Coming Soon */}
-            <div style={{ padding:"16px",background:"rgba(53,96,90,0.08)",borderRadius:"12px",border:"1px solid rgba(53,96,90,0.2)",textAlign:"center" }}>
-              <div style={{ fontSize:"20px",marginBottom:"6px" }}>🚀</div>
-              <div style={{ fontFamily:"'Playfair Display',serif",color:C.cream,fontSize:"15px",fontWeight:600,marginBottom:"4px" }}>More Features Coming Soon</div>
-              <div style={{ color:"rgba(232,220,203,0.5)",fontSize:"12px",lineHeight:1.6 }}>Profile pictures, reading stats, book reviews, and more are on the way. Stay tuned!</div>
-            </div>
-          </div>
-        </div>
+        <AccountModal
+          user={user} username={username} usernameInput={usernameInput} setUsernameInput={setUsernameInput}
+          usernameError={usernameError} usernameSaved={usernameSaved} saveUsername={saveUsername}
+          showChangePassword={showChangePassword} setShowChangePassword={setShowChangePassword}
+          newPassword={newPassword} setNewPassword={setNewPassword} passwordMsg={passwordMsg} changePassword={changePassword}
+          shelves={shelves} finishedDates={finishedDates} favGenres={favGenres} favTropes={favTropes}
+          onClose={() => setShowAccount(false)} onOpenProfile={() => { setShowAccount(false); setShowProfile("own"); }}
+        />
       )}
 
       {/* Barcode Modal */}
