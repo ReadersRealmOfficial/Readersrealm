@@ -280,16 +280,22 @@ const ContentBadge = ({ rating }) => {
 
 const MultiSelect = ({ label, options, selected, onChange, placeholder }) => {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const ref = useRef(null);
+  const searchRef = useRef(null);
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+  useEffect(() => {
+    if (open && searchRef.current && !window.matchMedia("(hover: none)").matches) searchRef.current.focus();
+  }, [open]);
+  const filtered = search.trim() ? options.filter(o => o.toLowerCase().includes(search.toLowerCase())) : options;
   return (
     <div ref={ref} style={{ position: "relative", marginBottom: "8px" }}>
       {label && <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>{label}</div>}
-      <div onClick={() => setOpen(!open)} style={{
+      <div onClick={() => { setOpen(o => !o); setSearch(""); }} style={{
         background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "8px",
         padding: "8px 12px", cursor: "pointer", fontSize: "13px", color: C.cream,
         display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: "38px",
@@ -301,24 +307,40 @@ const MultiSelect = ({ label, options, selected, onChange, placeholder }) => {
         <div style={{
           position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100,
           background: "#2B1E2F", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "8px",
-          maxHeight: "200px", overflowY: "auto", marginTop: "4px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+          marginTop: "4px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
         }}>
-          {options.map(opt => (
-            <div key={opt} onClick={() => onChange(selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt])} style={{
-              padding: "8px 12px", cursor: "pointer", fontSize: "12px",
-              color: selected.includes(opt) ? C.copper : C.cream,
-              background: selected.includes(opt) ? "rgba(194,122,58,0.15)" : "transparent",
-              display: "flex", alignItems: "center", gap: "8px",
-            }}>
-              <span style={{
-                width: "16px", height: "16px", borderRadius: "3px", display: "inline-flex",
-                alignItems: "center", justifyContent: "center", fontSize: "10px",
-                border: `1.5px solid ${selected.includes(opt) ? C.copper : "rgba(232,220,203,0.3)"}`,
-                background: selected.includes(opt) ? C.copper : "transparent", color: "#fff",
-              }}>{selected.includes(opt) ? "✓" : ""}</span>
-              {opt}
-            </div>
-          ))}
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid rgba(232,220,203,0.1)", position: "sticky", top: 0, background: "#2B1E2F", zIndex: 1 }}>
+            <input
+              ref={searchRef}
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              style={{ width: "100%", background: "rgba(43,30,47,0.8)", border: "1px solid rgba(194,122,58,0.25)", borderRadius: "4px", padding: "5px 8px", color: C.cream, fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ maxHeight: "180px", overflowY: "auto" }}>
+            {filtered.length === 0 && (
+              <div style={{ padding: "10px 12px", fontSize: "12px", color: "rgba(232,220,203,0.4)", textAlign: "center" }}>No results</div>
+            )}
+            {filtered.map(opt => (
+              <div key={opt} onMouseDown={e => { e.preventDefault(); onChange(selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt]); }} style={{
+                padding: "8px 12px", cursor: "pointer", fontSize: "12px",
+                color: selected.includes(opt) ? C.copper : C.cream,
+                background: selected.includes(opt) ? "rgba(194,122,58,0.15)" : "transparent",
+                display: "flex", alignItems: "center", gap: "8px",
+              }}>
+                <span style={{
+                  width: "16px", height: "16px", borderRadius: "3px", display: "inline-flex",
+                  alignItems: "center", justifyContent: "center", fontSize: "10px",
+                  border: `1.5px solid ${selected.includes(opt) ? C.copper : "rgba(232,220,203,0.3)"}`,
+                  background: selected.includes(opt) ? C.copper : "transparent", color: "#fff",
+                  flexShrink: 0,
+                }}>{selected.includes(opt) ? "✓" : ""}</span>
+                {opt}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -383,6 +405,189 @@ const BookCover = ({ book, style = {} }) => {
   );
 };
 
+// ─── Filters Sidebar Content ───
+const FiltersContent = ({
+  isMobile = false, setShowMobileFilters, clearAllFilters, trackFilter,
+  includeWarnings, setIncludeWarnings, includeTropes, setIncludeTropes, includeTags, setIncludeTags,
+  excludeWarnings, setExcludeWarnings, excludeTropes, setExcludeTropes, excludeTags, setExcludeTags,
+  selectedGenres, setSelectedGenres, contentRatings, setContentRatings,
+  sortBy, setSortBy, seriesStatus, setSeriesStatus,
+  minPages, setMinPages, maxPages, setMaxPages,
+  minWords, setMinWords, maxWords, setMaxWords, language, setLanguage,
+}) => (
+  <div style={{ padding: isMobile ? "20px" : 0 }}>
+    {isMobile && (
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", color: C.cream, margin: 0 }}>Filters</h2>
+        <button onClick={() => setShowMobileFilters(false)} style={{ background: "none", border: "none", color: C.cream, fontSize: "24px", cursor: "pointer" }}>✕</button>
+      </div>
+    )}
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+      {!isMobile && <span style={{ fontFamily: "'Playfair Display', serif", fontSize: "18px", color: C.cream, fontWeight: 700 }}>FILTERS</span>}
+      <span onClick={clearAllFilters} style={{ fontSize: "12px", color: C.teal, cursor: "pointer", fontWeight: 600 }}>Clear All</span>
+    </div>
+    <CollapsibleSection title="Include" color={C.teal} defaultOpen>
+      <MultiSelect label="Warnings" options={ALL_WARNINGS} selected={includeWarnings} onChange={v => { setIncludeWarnings(v); trackFilter("includeWarnings", v); }} placeholder="Include warnings..." />
+      <MultiSelect label="Tropes" options={ALL_TROPES} selected={includeTropes} onChange={v => { setIncludeTropes(v); trackFilter("includeTropes", v); }} placeholder="Include tropes..." />
+      <MultiSelect label="Tags" options={ALL_TAGS} selected={includeTags} onChange={v => { setIncludeTags(v); trackFilter("includeTags", v); }} placeholder="Include tags..." />
+    </CollapsibleSection>
+    <CollapsibleSection title="Exclude" color="#8B3A3A" defaultOpen>
+      <MultiSelect label="Warnings" options={ALL_WARNINGS} selected={excludeWarnings} onChange={v => { setExcludeWarnings(v); trackFilter("excludeWarnings", v); }} placeholder="Exclude warnings..." />
+      <MultiSelect label="Tropes" options={ALL_TROPES} selected={excludeTropes} onChange={v => { setExcludeTropes(v); trackFilter("excludeTropes", v); }} placeholder="Exclude tropes..." />
+      <MultiSelect label="Tags" options={ALL_TAGS} selected={excludeTags} onChange={v => { setExcludeTags(v); trackFilter("excludeTags", v); }} placeholder="Exclude tags..." />
+    </CollapsibleSection>
+    <CollapsibleSection title="Genre" defaultOpen><MultiSelect options={ALL_GENRES} selected={selectedGenres} onChange={v => { setSelectedGenres(v); trackFilter("genre", v); }} placeholder="Select genres..." /></CollapsibleSection>
+    <CollapsibleSection title="Content Rating" defaultOpen>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        {CONTENT_RATINGS.map(r => (
+          <label key={r} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: C.cream }}>
+            <input type="checkbox" checked={contentRatings.includes(r)} onChange={() => { setContentRatings(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r]); trackFilter("contentRating", r); }} style={{ accentColor: C.copper }} />{r}
+          </label>
+        ))}
+      </div>
+    </CollapsibleSection>
+    <CollapsibleSection title="Sort By" defaultOpen><Dropdown value={sortBy} onChange={v => { setSortBy(v); trackFilter("sortBy", v); }} options={["New", "Popular", "Title", "Author"]} /></CollapsibleSection>
+    <CollapsibleSection title="More Options" color={C.teal}>
+      <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>SERIES STATUS</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "12px" }}>
+        {["Completed", "Ongoing", "Standalone", "Any"].map(s => (
+          <label key={s} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: C.cream }}>
+            <input type="radio" name="series" checked={seriesStatus === s} onChange={() => { setSeriesStatus(s); trackFilter("seriesStatus", s); }} style={{ accentColor: C.copper }} />{s}
+          </label>
+        ))}
+      </div>
+      <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>PAGE COUNT</div>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
+        <input type="number" placeholder="Min" value={minPages} onChange={e => setMinPages(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
+        <span style={{ color: C.cream }}>-</span>
+        <input type="number" placeholder="Max" value={maxPages} onChange={e => setMaxPages(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
+      </div>
+      <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>WORD COUNT</div>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
+        <input type="number" placeholder="Min" value={minWords} onChange={e => setMinWords(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
+        <span style={{ color: C.cream }}>-</span>
+        <input type="number" placeholder="Max" value={maxWords} onChange={e => setMaxWords(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
+      </div>
+      <Dropdown label="Language" value={language} onChange={v => { setLanguage(v); trackFilter("language", v); }} options={ALL_LANGUAGES} placeholder="Any Language" />
+    </CollapsibleSection>
+    {isMobile && <button onClick={() => setShowMobileFilters(false)} style={{ width: "100%", padding: "14px", background: C.teal, color: "#fff", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginTop: "12px" }}>Apply Filters</button>}
+  </div>
+);
+
+// ─── Book Detail Modal ───
+const BookDetailModal = ({ book, onClose, getBookShelf, requireAuth, showShelfPicker, setShowShelfPicker, shelves, addToShelf, isAuthenticated, friends, showRecPanel, setShowRecPanel, user, recommendBook, getBookRecs }) => {
+  const [recNote, setRecNote] = useState("");
+  const shelf = getBookShelf(book.id);
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(160deg, #2B1E2F 0%, #1a1220 100%)", borderRadius: "16px", maxWidth: "680px", width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "32px", position: "relative", border: "1px solid rgba(194,122,58,0.2)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", color: C.cream, fontSize: "24px", cursor: "pointer" }}>✕</button>
+        <div style={{ display: "flex", gap: "20px", marginBottom: "24px", flexWrap: "wrap" }}>
+          <div style={{ width: "130px", height: "195px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}><BookCover book={book} /></div>
+          <div style={{ flex: 1, minWidth: "200px" }}>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", color: C.cream, margin: "0 0 4px", fontSize: "22px" }}>{book.title}</h2>
+            <div style={{ color: "rgba(232,220,203,0.7)", fontSize: "14px", marginBottom: "8px" }}>by {book.author}</div>
+            <StarRating rating={book.rating} />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", margin: "12px 0" }}>
+              {book.genres.map(g => <Badge key={g} text={g} color="#fff" bg={C.teal} border="none" />)}
+              <Badge text={book.contentRating} color="#fff" bg={book.contentRating === "Adult" ? "#8B3A3A" : book.contentRating === "Teen" ? C.copper : C.teal} border="none" />
+            </div>
+            <div style={{ fontSize: "12px", color: "rgba(232,220,203,0.6)", display: "flex", flexWrap: "wrap", gap: "12px" }}>
+              <span>{book.pages} pages</span><span>{book.words?.toLocaleString()} words</span><span>{book.language}</span>
+              {book.series ? <span>{book.series.name} #{book.series.number} — {book.series.status.toLowerCase()}</span> : <span>Standalone</span>}
+            </div>
+            <div style={{ marginTop: "12px", position: "relative", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button onClick={() => { if (requireAuth("Save books to your personal shelves! Create a free account to start organizing your reading list.")) setShowShelfPicker(showShelfPicker === book.id ? null : book.id); }} style={{ padding: "8px 16px", background: shelf ? C.teal : "rgba(53,96,90,0.2)", border: `1px solid ${C.teal}`, borderRadius: "6px", color: shelf ? "#fff" : C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                {shelf ? `📚 ${shelf}` : "＋ Add to Shelf"}
+              </button>
+              {isAuthenticated && friends.length > 0 && (
+                <button onClick={() => setShowRecPanel(showRecPanel ? false : book.id)} style={{ padding: "8px 16px", background: "rgba(53,96,90,0.15)", border: `1px solid ${C.teal}`, borderRadius: "6px", color: C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
+                  📤 Recommend
+                </button>
+              )}
+              {book.isbn && (
+                <>
+                  <a href={`https://bookshop.org/a/123043/${book.isbn}`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "bookshop", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "6px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    🛒 Bookshop.org
+                  </a>
+                  <a href={`https://www.amazon.com/s?k=${book.isbn}&tag=readersreal0e-20`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "amazon", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "6px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    🛍️ Amazon
+                  </a>
+                </>
+              )}
+              {book.isbn && (
+                <div style={{ width: "100%", marginTop: "4px" }}>
+                  <span style={{ fontSize: "9px", color: "rgba(232,220,203,0.3)", fontStyle: "italic" }}>As an affiliate, we earn a small commission from qualifying purchases at no extra cost to you.</span>
+                </div>
+              )}
+              {showShelfPicker === book.id && isAuthenticated && (
+                <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 10, marginTop: "4px", background: "#2B1E2F", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "8px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  {Object.keys(shelves).map(s => (
+                    <div key={s} onClick={() => addToShelf(book.id, s)} style={{ padding: "10px 16px", cursor: "pointer", fontSize: "13px", color: shelves[s].includes(book.id) ? C.copper : C.cream, background: shelves[s].includes(book.id) ? "rgba(194,122,58,0.15)" : "transparent", whiteSpace: "nowrap" }}>{shelves[s].includes(book.id) ? "✓ " : ""}{s}</div>
+                  ))}
+                </div>
+              )}
+              {showRecPanel === book.id && (
+                <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 10, marginTop: "4px", background: "#2B1E2F", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "8px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", padding: "12px", minWidth: "240px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: C.teal, marginBottom: "8px" }}>Send to a friend:</div>
+                  <textarea
+                    placeholder="Add a note (optional)..."
+                    value={recNote}
+                    onChange={e => setRecNote(e.target.value)}
+                    rows={3}
+                    style={{ width: "100%", padding: "8px 10px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "6px", color: C.cream, fontSize: "12px", marginBottom: "8px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+                  />
+                  {friends.map(f => {
+                    const friend = f.requester_id === user.id ? f.addressee : f.requester;
+                    return (
+                      <div key={f.id} onClick={() => { recommendBook(book.id, friend.id, recNote); setShowRecPanel(false); }} style={{ padding: "8px 10px", cursor: "pointer", fontSize: "12px", color: C.cream, borderRadius: "6px", marginBottom: "2px" }} onMouseOver={e=>e.target.style.background="rgba(53,96,90,0.2)"} onMouseOut={e=>e.target.style.background="transparent"}>
+                        👤 {friend?.username ? `@${friend.username}` : friend?.display_name || friend?.email?.split("@")[0]}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Recommended by tags */}
+              {isAuthenticated && getBookRecs(book.id).length > 0 && (
+                <div style={{ width: "100%", marginTop: "6px" }}>
+                  <div style={{ fontSize: "10px", color: C.teal, fontWeight: 600, marginBottom: "4px" }}>Recommended by:</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                    {getBookRecs(book.id).map((r, i) => (
+                      <span key={i} style={{ padding: "2px 8px", background: "rgba(53,96,90,0.15)", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "10px", fontSize: "10px", color: C.teal }}>{r.from_user?.username ? `@${r.from_user.username}` : r.from_user?.display_name || "Friend"}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginBottom: "24px" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.copper, fontSize: "14px", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px" }}>DESCRIPTION</h3>
+          <p style={{ color: C.cream, fontSize: "14px", lineHeight: 1.7, margin: 0 }}>{book.description}</p>
+        </div>
+        {book.warnings.length > 0 && (
+          <div style={{ background: "rgba(139,58,58,0.1)", border: "1px solid rgba(139,58,58,0.3)", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
+            <h3 style={{ fontSize: "13px", color: "#C27A3A", letterSpacing: "1px", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "6px" }}>⚠ CONTENT WARNINGS</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{book.warnings.map(w => <Badge key={w} text={w} color="#C27A3A" border="1px solid rgba(194,122,58,0.4)" />)}</div>
+          </div>
+        )}
+        {book.tropes.length > 0 && (
+          <div style={{ marginBottom: "20px" }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.copper, fontSize: "13px", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "10px" }}>TROPES</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{book.tropes.map(t => <Badge key={t} text={t} color={C.cream} border="1px solid rgba(232,220,203,0.3)" />)}</div>
+          </div>
+        )}
+        {book.tags.length > 0 && (
+          <div>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.copper, fontSize: "13px", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "10px" }}>TAGS</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{book.tags.map(t => <Badge key={t} text={t} color={C.teal} border="1px solid rgba(53,96,90,0.5)" />)}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Main App ───
 export default function BookApp() {
   const navigate = useNavigate();
@@ -442,7 +647,6 @@ export default function BookApp() {
   const [friendRequests, setFriendRequests] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [friendSearch, setFriendSearch] = useState("");
-  const [recNote, setRecNote] = useState("");
   const [showRecPanel, setShowRecPanel] = useState(false);
 
   // Account & username
@@ -601,10 +805,9 @@ export default function BookApp() {
     setFriendRequests(p => p.filter(r => r.id !== id));
   };
 
-  const recommendBook = async (bookId, friendId) => {
-    if (!recNote && !window.confirm("Send recommendation without a note?")) return;
-    await supabase.from("recommendations").insert({ from_user_id: user.id, to_user_id: friendId, book_id: bookId, note: recNote });
-    setRecNote("");
+  const recommendBook = async (bookId, friendId, note = "") => {
+    if (!note && !window.confirm("Send recommendation without a note?")) return;
+    await supabase.from("recommendations").insert({ from_user_id: user.id, to_user_id: friendId, book_id: bookId, note });
     alert("Recommendation sent!");
   };
 
@@ -657,6 +860,16 @@ export default function BookApp() {
     setIncludeTags([]); setExcludeWarnings([]); setExcludeTropes([]); setExcludeTags([]);
   };
 
+  const filterProps = {
+    clearAllFilters, trackFilter, setShowMobileFilters,
+    includeWarnings, setIncludeWarnings, includeTropes, setIncludeTropes, includeTags, setIncludeTags,
+    excludeWarnings, setExcludeWarnings, excludeTropes, setExcludeTropes, excludeTags, setExcludeTags,
+    selectedGenres, setSelectedGenres, contentRatings, setContentRatings,
+    sortBy, setSortBy, seriesStatus, setSeriesStatus,
+    minPages, setMinPages, maxPages, setMaxPages,
+    minWords, setMinWords, maxWords, setMaxWords, language, setLanguage,
+  };
+
   const addToShelf = (bookId, shelfName) => {
     setShelves(prev => {
       const u = { ...prev };
@@ -676,176 +889,6 @@ export default function BookApp() {
   const trackFilter = (filterName, value) => {
     if (user?.email === OWNER_EMAIL) return; // don't track your own usage
     trackGA("filter_used", { filter: filterName, value: String(value) });
-  };
-
-  // ─── Filters Sidebar Content (Include/Exclude first, then Genre/etc) ───
-  const FiltersContent = ({ isMobile = false }) => (
-    <div style={{ padding: isMobile ? "20px" : 0 }}>
-      {isMobile && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", color: C.cream, margin: 0 }}>Filters</h2>
-          <button onClick={() => setShowMobileFilters(false)} style={{ background: "none", border: "none", color: C.cream, fontSize: "24px", cursor: "pointer" }}>✕</button>
-        </div>
-      )}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-        {!isMobile && <span style={{ fontFamily: "'Playfair Display', serif", fontSize: "18px", color: C.cream, fontWeight: 700 }}>FILTERS</span>}
-        <span onClick={clearAllFilters} style={{ fontSize: "12px", color: C.teal, cursor: "pointer", fontWeight: 600 }}>Clear All</span>
-      </div>
-      <CollapsibleSection title="Include" color={C.teal} defaultOpen>
-        <MultiSelect label="Warnings" options={ALL_WARNINGS} selected={includeWarnings} onChange={v => { setIncludeWarnings(v); trackFilter("includeWarnings", v); }} placeholder="Include warnings..." />
-        <MultiSelect label="Tropes" options={ALL_TROPES} selected={includeTropes} onChange={v => { setIncludeTropes(v); trackFilter("includeTropes", v); }} placeholder="Include tropes..." />
-        <MultiSelect label="Tags" options={ALL_TAGS} selected={includeTags} onChange={v => { setIncludeTags(v); trackFilter("includeTags", v); }} placeholder="Include tags..." />
-      </CollapsibleSection>
-      <CollapsibleSection title="Exclude" color="#8B3A3A" defaultOpen>
-        <MultiSelect label="Warnings" options={ALL_WARNINGS} selected={excludeWarnings} onChange={v => { setExcludeWarnings(v); trackFilter("excludeWarnings", v); }} placeholder="Exclude warnings..." />
-        <MultiSelect label="Tropes" options={ALL_TROPES} selected={excludeTropes} onChange={v => { setExcludeTropes(v); trackFilter("excludeTropes", v); }} placeholder="Exclude tropes..." />
-        <MultiSelect label="Tags" options={ALL_TAGS} selected={excludeTags} onChange={v => { setExcludeTags(v); trackFilter("excludeTags", v); }} placeholder="Exclude tags..." />
-      </CollapsibleSection>
-      <CollapsibleSection title="Genre" defaultOpen><MultiSelect options={ALL_GENRES} selected={selectedGenres} onChange={v => { setSelectedGenres(v); trackFilter("genre", v); }} placeholder="Select genres..." /></CollapsibleSection>
-      <CollapsibleSection title="Content Rating" defaultOpen>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {CONTENT_RATINGS.map(r => (
-            <label key={r} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: C.cream }}>
-              <input type="checkbox" checked={contentRatings.includes(r)} onChange={() => { setContentRatings(p => p.includes(r) ? p.filter(x => x !== r) : [...p, r]); trackFilter("contentRating", r); }} style={{ accentColor: C.copper }} />{r}
-            </label>
-          ))}
-        </div>
-      </CollapsibleSection>
-      <CollapsibleSection title="Sort By" defaultOpen><Dropdown value={sortBy} onChange={v => { setSortBy(v); trackFilter("sortBy", v); }} options={["New", "Popular", "Title", "Author"]} /></CollapsibleSection>
-      <CollapsibleSection title="More Options" color={C.teal}>
-        <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>SERIES STATUS</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "12px" }}>
-          {["Completed", "Ongoing", "Standalone", "Any"].map(s => (
-            <label key={s} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: C.cream }}>
-              <input type="radio" name="series" checked={seriesStatus === s} onChange={() => { setSeriesStatus(s); trackFilter("seriesStatus", s); }} style={{ accentColor: C.copper }} />{s}
-            </label>
-          ))}
-        </div>
-        <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>PAGE COUNT</div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
-          <input type="number" placeholder="Min" value={minPages} onChange={e => setMinPages(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
-          <span style={{ color: C.cream }}>-</span>
-          <input type="number" placeholder="Max" value={maxPages} onChange={e => setMaxPages(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
-        </div>
-        <div style={{ fontSize: "11px", fontWeight: 700, color: C.copper, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "6px" }}>WORD COUNT</div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}>
-          <input type="number" placeholder="Min" value={minWords} onChange={e => setMinWords(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
-          <span style={{ color: C.cream }}>-</span>
-          <input type="number" placeholder="Max" value={maxWords} onChange={e => setMaxWords(e.target.value)} style={{ width: "70px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "6px", padding: "6px 8px", color: C.cream, fontSize: "12px" }} />
-        </div>
-        <Dropdown label="Language" value={language} onChange={v => { setLanguage(v); trackFilter("language", v); }} options={ALL_LANGUAGES} placeholder="Any Language" />
-      </CollapsibleSection>
-      {isMobile && <button onClick={() => setShowMobileFilters(false)} style={{ width: "100%", padding: "14px", background: C.teal, color: "#fff", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginTop: "12px" }}>Apply Filters</button>}
-    </div>
-  );
-
-  // ─── Book Detail Modal ───
-  const BookDetailModal = ({ book, onClose }) => {
-    const shelf = getBookShelf(book.id);
-    return (
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(160deg, #2B1E2F 0%, #1a1220 100%)", borderRadius: "16px", maxWidth: "680px", width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "32px", position: "relative", border: "1px solid rgba(194,122,58,0.2)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
-          <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", color: C.cream, fontSize: "24px", cursor: "pointer" }}>✕</button>
-          <div style={{ display: "flex", gap: "20px", marginBottom: "24px", flexWrap: "wrap" }}>
-            <div style={{ width: "130px", height: "195px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}><BookCover book={book} /></div>
-            <div style={{ flex: 1, minWidth: "200px" }}>
-              <h2 style={{ fontFamily: "'Playfair Display', serif", color: C.cream, margin: "0 0 4px", fontSize: "22px" }}>{book.title}</h2>
-              <div style={{ color: "rgba(232,220,203,0.7)", fontSize: "14px", marginBottom: "8px" }}>by {book.author}</div>
-              <StarRating rating={book.rating} />
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", margin: "12px 0" }}>
-                {book.genres.map(g => <Badge key={g} text={g} color="#fff" bg={C.teal} border="none" />)}
-                <Badge text={book.contentRating} color="#fff" bg={book.contentRating === "Adult" ? "#8B3A3A" : book.contentRating === "Teen" ? C.copper : C.teal} border="none" />
-              </div>
-              <div style={{ fontSize: "12px", color: "rgba(232,220,203,0.6)", display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                <span>{book.pages} pages</span><span>{book.words?.toLocaleString()} words</span><span>{book.language}</span>
-                {book.series ? <span>{book.series.name} #{book.series.number} — {book.series.status.toLowerCase()}</span> : <span>Standalone</span>}
-              </div>
-              {(
-                <div style={{ marginTop: "12px", position: "relative", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button onClick={() => { if (requireAuth("Save books to your personal shelves! Create a free account to start organizing your reading list.")) setShowShelfPicker(showShelfPicker === book.id ? null : book.id); }} style={{ padding: "8px 16px", background: shelf ? C.teal : "rgba(53,96,90,0.2)", border: `1px solid ${C.teal}`, borderRadius: "6px", color: shelf ? "#fff" : C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                    {shelf ? `📚 ${shelf}` : "＋ Add to Shelf"}
-                  </button>
-                  {isAuthenticated && friends.length > 0 && (
-                    <button onClick={() => setShowRecPanel(showRecPanel ? false : book.id)} style={{ padding: "8px 16px", background: "rgba(53,96,90,0.15)", border: `1px solid ${C.teal}`, borderRadius: "6px", color: C.teal, fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                      📤 Recommend
-                    </button>
-                  )}
-                  {book.isbn && (
-                    <>
-                      <a href={`https://bookshop.org/a/123043/${book.isbn}`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "bookshop", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "6px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        🛒 Bookshop.org
-                      </a>
-                      <a href={`https://www.amazon.com/s?k=${book.isbn}&tag=readersreal0e-20`} target="_blank" rel="noreferrer" onClick={() => trackEvent("affiliate_click", { store: "amazon", bookId: book.id, title: book.title })} style={{ padding: "8px 16px", background: "rgba(194,122,58,0.15)", border: `1px solid ${C.copper}`, borderRadius: "6px", color: C.copper, fontSize: "12px", fontWeight: 600, textDecoration: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        🛍️ Amazon
-                      </a>
-                    </>
-                  )}
-                  {book.isbn && (
-                    <div style={{ width: "100%", marginTop: "4px" }}>
-                      <span style={{ fontSize: "9px", color: "rgba(232,220,203,0.3)", fontStyle: "italic" }}>As an affiliate, we earn a small commission from qualifying purchases at no extra cost to you.</span>
-                    </div>
-                  )}
-                  {showShelfPicker === book.id && isAuthenticated && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 10, marginTop: "4px", background: "#2B1E2F", border: "1px solid rgba(194,122,58,0.3)", borderRadius: "8px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", overflow: "hidden" }}>
-                      {Object.keys(shelves).map(s => (
-                        <div key={s} onClick={() => addToShelf(book.id, s)} style={{ padding: "10px 16px", cursor: "pointer", fontSize: "13px", color: shelves[s].includes(book.id) ? C.copper : C.cream, background: shelves[s].includes(book.id) ? "rgba(194,122,58,0.15)" : "transparent", whiteSpace: "nowrap" }}>{shelves[s].includes(book.id) ? "✓ " : ""}{s}</div>
-                      ))}
-                    </div>
-                  )}
-                  {showRecPanel === book.id && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, zIndex: 10, marginTop: "4px", background: "#2B1E2F", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "8px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)", padding: "12px", minWidth: "240px" }}>
-                      <div style={{ fontSize: "11px", fontWeight: 700, color: C.teal, marginBottom: "8px" }}>Send to a friend:</div>
-                      <input placeholder="Add a note (optional)..." value={recNote} onChange={e=>setRecNote(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(43,30,47,0.6)", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "6px", color: C.cream, fontSize: "12px", marginBottom: "8px" }} />
-                      {friends.map(f => {
-                        const friend = f.requester_id === user.id ? f.addressee : f.requester;
-                        return (
-                          <div key={f.id} onClick={() => { recommendBook(book.id, friend.id); setShowRecPanel(false); }} style={{ padding: "8px 10px", cursor: "pointer", fontSize: "12px", color: C.cream, borderRadius: "6px", marginBottom: "2px" }} onMouseOver={e=>e.target.style.background="rgba(53,96,90,0.2)"} onMouseOut={e=>e.target.style.background="transparent"}>
-                            👤 {friend?.username ? `@${friend.username}` : friend?.display_name || friend?.email?.split("@")[0]}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {/* Recommended by tags */}
-                  {isAuthenticated && getBookRecs(book.id).length > 0 && (
-                    <div style={{ width: "100%", marginTop: "6px" }}>
-                      <div style={{ fontSize: "10px", color: C.teal, fontWeight: 600, marginBottom: "4px" }}>Recommended by:</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                        {getBookRecs(book.id).map((r, i) => (
-                          <span key={i} style={{ padding: "2px 8px", background: "rgba(53,96,90,0.15)", border: "1px solid rgba(53,96,90,0.3)", borderRadius: "10px", fontSize: "10px", color: C.teal }}>{r.from_user?.username ? `@${r.from_user.username}` : r.from_user?.display_name || "Friend"}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ marginBottom: "24px" }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.copper, fontSize: "14px", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "8px" }}>DESCRIPTION</h3>
-            <p style={{ color: C.cream, fontSize: "14px", lineHeight: 1.7, margin: 0 }}>{book.description}</p>
-          </div>
-          {book.warnings.length > 0 && (
-            <div style={{ background: "rgba(139,58,58,0.1)", border: "1px solid rgba(139,58,58,0.3)", borderRadius: "12px", padding: "16px", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "13px", color: "#C27A3A", letterSpacing: "1px", margin: "0 0 12px", display: "flex", alignItems: "center", gap: "6px" }}>⚠ CONTENT WARNINGS</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{book.warnings.map(w => <Badge key={w} text={w} color="#C27A3A" border="1px solid rgba(194,122,58,0.4)" />)}</div>
-            </div>
-          )}
-          {book.tropes.length > 0 && (
-            <div style={{ marginBottom: "20px" }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.copper, fontSize: "13px", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "10px" }}>TROPES</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{book.tropes.map(t => <Badge key={t} text={t} color={C.cream} border="1px solid rgba(232,220,203,0.3)" />)}</div>
-            </div>
-          )}
-          {book.tags.length > 0 && (
-            <div>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", color: C.copper, fontSize: "13px", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "10px" }}>TAGS</h3>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{book.tags.map(t => <Badge key={t} text={t} color={C.teal} border="1px solid rgba(53,96,90,0.5)" />)}</div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
   };
 
   if (authLoading || (!user && !isGuest)) return (
@@ -1042,7 +1085,7 @@ export default function BookApp() {
         </div>
       )}
 
-      {selectedBook && <BookDetailModal book={selectedBook} onClose={() => { setSelectedBook(null); setShowShelfPicker(null); }} />}
+      {selectedBook && <BookDetailModal book={selectedBook} onClose={() => { setSelectedBook(null); setShowShelfPicker(null); }} getBookShelf={getBookShelf} requireAuth={requireAuth} showShelfPicker={showShelfPicker} setShowShelfPicker={setShowShelfPicker} shelves={shelves} addToShelf={addToShelf} isAuthenticated={isAuthenticated} friends={friends} showRecPanel={showRecPanel} setShowRecPanel={setShowRecPanel} user={user} recommendBook={recommendBook} getBookRecs={getBookRecs} />}
 
       {/* Account Modal */}
       {showAccount && isAuthenticated && (
@@ -1116,7 +1159,7 @@ export default function BookApp() {
       {/* Mobile Filters */}
       {showMobileFilters && (
         <div className="mobile-filter-overlay" style={{ position: "fixed", inset: 0, background: "linear-gradient(160deg, #2B1E2F 0%, #1a1220 100%)", zIndex: 1800, overflowY: "auto" }}>
-          <FiltersContent isMobile />
+          <FiltersContent isMobile {...filterProps} />
         </div>
       )}
 
@@ -1238,7 +1281,7 @@ export default function BookApp() {
       ) : (
         <div style={{ display: "flex", padding: "0 24px 40px", gap: "24px" }}>
           <div className="desktop-filters" style={{ width: "240px", flexShrink: 0, position: "sticky", top: "80px", maxHeight: "calc(100vh - 100px)", overflowY: "auto", paddingRight: "8px" }}>
-            <FiltersContent />
+            <FiltersContent {...filterProps} />
           </div>
           <div className="main-content" style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "8px" }}>
