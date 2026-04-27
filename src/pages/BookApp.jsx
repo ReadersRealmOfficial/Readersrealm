@@ -860,6 +860,12 @@ export default function BookApp() {
     setIncludeTags([]); setExcludeWarnings([]); setExcludeTropes([]); setExcludeTags([]);
   };
 
+  // Helper to track filter usage — skips if the current user is the owner
+  const trackFilter = (filterName, value) => {
+    if (user?.email === OWNER_EMAIL) return; // don't track your own usage
+    trackGA("filter_used", { filter: filterName, value: String(value) });
+  };
+
   const filterProps = {
     clearAllFilters, trackFilter, setShowMobileFilters,
     includeWarnings, setIncludeWarnings, includeTropes, setIncludeTropes, includeTags, setIncludeTags,
@@ -883,12 +889,6 @@ export default function BookApp() {
   const getBookShelf = (bookId) => {
     for (const [name, ids] of Object.entries(shelves)) { if (ids.includes(bookId)) return name; }
     return null;
-  };
-
-  // Helper to track filter usage — skips if the current user is the owner
-  const trackFilter = (filterName, value) => {
-    if (user?.email === OWNER_EMAIL) return; // don't track your own usage
-    trackGA("filter_used", { filter: filterName, value: String(value) });
   };
 
   if (authLoading || (!user && !isGuest)) return (
